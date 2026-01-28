@@ -1,9 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class FirestoreService {
-  final _db = FirebaseFirestore.instance;
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  Future<void> saveStudentData({
+  Future<void> saveStudent({
     required String uid,
     required String name,
     required String rollNo,

@@ -3,12 +3,12 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class StorageService {
-  final _storage = FirebaseStorage.instance;
-  final _auth = FirebaseAuth.instance;
+  final FirebaseStorage _storage = FirebaseStorage.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   Future<List<String>> uploadFaceImages(List<File> images) async {
-    List<String> downloadUrls = [];
     final uid = _auth.currentUser!.uid;
+    List<String> downloadUrls = [];
 
     for (int i = 0; i < images.length; i++) {
       final ref = _storage

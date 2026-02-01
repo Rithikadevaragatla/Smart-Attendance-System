@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'face_capture_screen.dart';
 import '../services/local_storage_service.dart';
@@ -74,6 +75,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     );
 
                     final uid = credential.user!.uid;
+                    await FirebaseFirestore.instance
+                      .collection('students')
+                      .doc(uid)
+                      .set({
+                    'name': nameController.text.trim(),
+                    'rollNo': rollController.text.trim(),
+                    'email': emailController.text.trim(),
+                  });
+
 
                     // 2. Capture face images
                     final images = await Navigator.push(

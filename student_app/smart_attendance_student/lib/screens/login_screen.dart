@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'register_screen.dart';
-import 'student_home_screen.dart';
+//import 'student_home_screen.dart';
+import 'student_dashboard.dart';
+
 
 class LoginScreen extends StatefulWidget {
   @override
@@ -67,8 +69,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     Navigator.pushReplacement(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => const StudentHomeScreen(),
-                      ),
+                         builder: (_) => const StudentDashboard()),
+                      
                     );
                   } catch (e) {
                     print("LOGIN ERROR: $e");

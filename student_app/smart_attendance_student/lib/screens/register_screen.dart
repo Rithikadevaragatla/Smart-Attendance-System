@@ -3,8 +3,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'face_capture_screen.dart';
-import '../services/local_storage_service.dart';
-
+//import '../services/local_storage_service.dart';
+import '../services/face_detection_service.dart';
+import '../services/face_feature_service.dart';
 import '../services/firestore_service.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -75,16 +76,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     );
 
                     final uid = credential.user!.uid;
-                    await FirebaseFirestore.instance
-                      .collection('students')
-                      .doc(uid)
-                      .set({
-                    'name': nameController.text.trim(),
-                    'rollNo': rollController.text.trim(),
-                    'email': emailController.text.trim(),
-                  });
-
-
                     // 2. Capture face images
                     final images = await Navigator.push(
                       context,
@@ -96,11 +87,35 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     if (images == null || images.isEmpty) {
                       throw Exception("Face capture cancelled");
                     }
+                    // 2.5 Face detection + feature extraction
+                      final faceDetectionService = FaceDetectionService();
+                      final faceFeatureService = FaceFeatureService();
+
+                      Map<String, List<double>> embeddings = {};
+                      int index = 0;
+
+                      for (final imagePath in images) {
+                        final hasFace = await faceDetectionService.hasFace(imagePath);
+
+                        if (!hasFace) {
+                          throw Exception("Face not detected properly. Please recapture.");
+                        }
+
+                        final features =
+                            await faceFeatureService.extractFeatures(imagePath);
+
+                        if (features == null) {
+                          throw Exception("Failed to extract face features.");
+                        }
+
+                        embeddings['face_$index'] = features;
+                        index++;
+                      }
+
 
                     // 3. Save images locally
-                      final localStorageService = LocalStorageService();
-                      final facePaths =
-                          await localStorageService.saveFaceImages(images);
+                      final List<String> facePaths = List<String>.from(images);
+
 
 
                     // 4. Save student data in Firestore
@@ -110,7 +125,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       name: nameController.text.trim(),
                       rollNo: rollController.text.trim(),
                       email: emailController.text.trim(),
-                      faceUrls: facePaths, // local file paths
+                      faceUrls: facePaths,
+                      embeddings: embeddings, // local file paths
 
                     );
 

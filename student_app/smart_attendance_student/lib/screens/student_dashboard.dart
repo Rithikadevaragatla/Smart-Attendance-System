@@ -5,6 +5,10 @@ import 'login_screen.dart';
 import '../services/ble_service.dart';
 import '../services/session_service.dart';
 import '../services/permission_service.dart';
+import 'face_attendance_capture.dart';
+import '../services/face_detection_service.dart';
+import '../services/face_feature_service.dart';
+
 
 
 class StudentDashboard extends StatefulWidget {
@@ -120,9 +124,11 @@ class _StudentDashboardState extends State<StudentDashboard> {
                       ),
                     ),
 
-                    ElevatedButton(
+                    
+                      ElevatedButton(
                       onPressed: () async {
-                        try{
+                        try {
+                          // 1️⃣ Permissions
                           final hasPermission =
                               await PermissionService.requestBlePermissions();
 
@@ -133,6 +139,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
                             return;
                           }
 
+                          // 2️⃣ BLE scan
                           final bleService = BleService();
                           final sessionService = SessionService();
 
@@ -145,6 +152,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
                             return;
                           }
 
+                          // 3️⃣ Validate session
                           final isActive =
                               await sessionService.isSessionActive(sessionId);
 
@@ -155,11 +163,103 @@ class _StudentDashboardState extends State<StudentDashboard> {
                             return;
                           }
 
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text("Session detected: $sessionId")),
+                          // 4️⃣ Open camera
+                          final imagePath = await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const FaceAttendanceCapture(),
+                            ),
                           );
-                        }
-                        catch (e) {
+
+                          if (imagePath == null) return;
+
+                          // 5️⃣ Face detection
+                          final faceDetectionService = FaceDetectionService();
+                          final hasFace =
+                              await faceDetectionService.hasFace(imagePath);
+                          faceDetectionService.dispose();
+
+                          if (!hasFace) {
+                            showDialog(
+                              context: context,
+                              builder: (_) => const AlertDialog(
+                                title: Text("Face Not Detected"),
+                                content: Text("Please keep your face clearly visible."),
+                              ),
+                            );
+                            return;
+                          }
+
+                          // 6️⃣ Extract live features
+                          final featureService = FaceFeatureService();
+                          final liveFeatures =
+                              await featureService.extractFeatures(imagePath);
+                          featureService.dispose();
+
+                          if (liveFeatures == null) {
+                            showDialog(
+                              context: context,
+                              builder: (_) => const AlertDialog(
+                                title: Text("Error"),
+                                content: Text("Could not extract face features."),
+                              ),
+                            );
+                            return;
+                          }
+
+                          // 7️⃣ Fetch stored embeddings
+                          final uid = FirebaseAuth.instance.currentUser!.uid;
+                          final doc = await FirebaseFirestore.instance
+                              .collection('students')
+                              .doc(uid)
+                              .get();
+
+                          final Map<String, dynamic> storedEmbeddings =
+                                  Map<String, dynamic>.from(doc['embeddings']);
+
+                              double minDistance = double.infinity;
+
+                              for (final entry in storedEmbeddings.entries) {
+                                final List<double> stored =
+                                    List<double>.from(entry.value);
+
+                                final dist =
+                                    FaceFeatureService.compare(liveFeatures, stored);
+
+                                print('Comparing ${entry.key}, distance = $dist');
+
+                                if (dist < minDistance) {
+                                  minDistance = dist;
+                                }
+                              }
+                            print('FINAL MIN DISTANCE = $minDistance');
+
+                                if (minDistance < 45.0) {
+                            // ✅ MATCH
+                            showDialog(
+                              context: context,
+                              builder: (_) => AlertDialog(
+                                title: const Text("Attendance Marked"),
+                                content: Text(
+                                  "Name: $studentName\nRoll No: $rollNo",
+                                ),
+                              ),
+                            );
+
+                            // TODO (next step): write attendance to Firestore
+                          } else {
+                            // ❌ NO MATCH
+                            showDialog(
+                              context: context,
+                              builder: (_) =>  AlertDialog(
+                                title: Text("Face Mismatch"),
+                                content: Text(
+                                  "Attendance not marked.\nDistance: ${minDistance.toStringAsFixed(2)}",
+                                ),
+                              ),
+                            );
+                          }
+                        } catch (e) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(content: Text("Error: $e")),
                           );
@@ -169,9 +269,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
                     ),
                   ],
                 ),
-
-                const SizedBox(height: 25),
-
+                
 
                   // 🔹 Today's Timetable
                   const Text(

@@ -13,7 +13,7 @@ class _FaceCaptureScreenState extends State<FaceCaptureScreen> {
   late Future<void> _initializeControllerFuture;
 
   int step = 0; // 0-front, 1-left, 2-right
-  List<File> capturedImages = [];
+  List<String> capturedImages = [];
 
   final instructions = [
     'Capture FRONT face',
@@ -57,7 +57,7 @@ class _FaceCaptureScreenState extends State<FaceCaptureScreen> {
     final image = await _controller.takePicture();
     final savedImage = await File(image.path).copy(imagePath);
 
-    capturedImages.add(savedImage);
+    capturedImages.add(savedImage.path);
 
     if (step < 2) {
       setState(() => step++);

@@ -9,6 +9,8 @@ class FirestoreService {
     required String rollNo,
     required String email,
     required List<String> faceUrls,
+   required Map<String, List<double>> embeddings,
+
   }) async {
     await _db.collection('students').doc(uid).set({
       'name': name,
@@ -16,6 +18,7 @@ class FirestoreService {
       'email': email,
       'faceImages': faceUrls,
       'createdAt': Timestamp.now(),
+      'embeddings': embeddings,
     });
   }
 }

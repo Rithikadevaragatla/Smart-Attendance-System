@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'view_attendance.dart';
-import '../services/ble_service.dart'; // 🔵 ADD THIS
+import '../services/ble_service.dart';
 
 class TeacherDashboard extends StatefulWidget {
   const TeacherDashboard({super.key});
@@ -17,23 +18,21 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
 
   // 🔵 Start attendance session + BLE broadcast
   Future<void> _startSession() async {
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return;
 
       // 1️⃣ Create session in Firestore
-      DocumentReference sessionRef =
+      final sessionRef =
           await FirebaseFirestore.instance.collection('sessions').add({
         'teacherId': user.uid,
         'startTime': Timestamp.now(),
         'isActive': true,
       });
 
-      // 2️⃣ START BLE advertising with sessionId
+      // 2️⃣ Start BLE advertising
       await BleService.startAdvertising(sessionRef.id);
 
       setState(() {
@@ -41,12 +40,10 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
       });
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to start session: $e")),
+        SnackBar(content: Text("Failed to start session")),
       );
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() => _isLoading = false);
     }
   }
 
@@ -54,13 +51,11 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
   Future<void> _endSession() async {
     if (_activeSessionId == null) return;
 
-    // 1️⃣ Update Firestore
     await FirebaseFirestore.instance
         .collection('sessions')
         .doc(_activeSessionId)
         .update({'isActive': false});
 
-    // 2️⃣ STOP BLE advertising
     await BleService.stopAdvertising();
 
     setState(() {
@@ -83,61 +78,113 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
           )
         ],
       ),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // 🔹 No active session
-              if (_activeSessionId == null) ...[
-                ElevatedButton(
-                  onPressed: _isLoading ? null : _startSession,
-                  child: _isLoading
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text("Start Attendance Session"),
-                ),
-              ]
+      body: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // 👋 Welcome
+            Text(
+              "Welcome, ${FirebaseAuth.instance.currentUser?.email}",
+              style: const TextStyle(fontSize: 14, color: Colors.grey),
+            ),
 
-              // 🔹 Active session
-              else ...[
-                const Text(
-                  "Session Active",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 10),
+            const SizedBox(height: 20),
 
-                SelectableText(
-                  "Session ID:\n$_activeSessionId",
-                  textAlign: TextAlign.center,
-                ),
-
-                const SizedBox(height: 20),
-
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                  onPressed: _endSession,
-                  child: const Text("End Session"),
-                ),
-
-                const SizedBox(height: 10),
-
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => ViewAttendancePage(
-                          sessionId: _activeSessionId!,
-                        ),
+            // 📦 Session Status Card
+            Card(
+              elevation: 4,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    Text(
+                      _activeSessionId == null
+                          ? "No Active Session"
+                          : "Session Active",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: _activeSessionId == null
+                            ? Colors.grey
+                            : Colors.green,
                       ),
-                    );
-                  },
-                  child: const Text("View Attendance"),
+                    ),
+
+                    if (_activeSessionId != null) ...[
+                      const SizedBox(height: 10),
+
+                      SelectableText(
+                        "Session ID:\n$_activeSessionId",
+                        textAlign: TextAlign.center,
+                      ),
+
+                      const SizedBox(height: 8),
+
+                      TextButton.icon(
+                        icon: const Icon(Icons.copy),
+                        label: const Text("Copy Session ID"),
+                        onPressed: () {
+                          Clipboard.setData(
+                            ClipboardData(text: _activeSessionId!),
+                          );
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text("Session ID copied"),
+                            ),
+                          );
+                        },
+                      ),
+                    ]
+                  ],
                 ),
-              ],
+              ),
+            ),
+
+            const SizedBox(height: 30),
+
+            // ▶️ Start / ⛔ End Session Buttons
+            if (_activeSessionId == null) ...[
+              ElevatedButton.icon(
+                icon: const Icon(Icons.play_arrow),
+                label: const Text("Start Attendance Session"),
+                onPressed: _isLoading ? null : _startSession,
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+              ),
+            ] else ...[
+              ElevatedButton.icon(
+                icon: const Icon(Icons.stop),
+                label: const Text("End Session"),
+                onPressed: _endSession,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+              ),
+
+              const SizedBox(height: 10),
+
+              OutlinedButton.icon(
+                icon: const Icon(Icons.list),
+                label: const Text("View Attendance"),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ViewAttendancePage(
+                        sessionId: _activeSessionId!,
+                      ),
+                    ),
+                  );
+                },
+              ),
             ],
-          ),
+          ],
         ),
       ),
     );

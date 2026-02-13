@@ -4,7 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import 'face_capture_screen.dart';
 //import '../services/local_storage_service.dart';
-import '../services/face_detection_service.dart';
+//import '../services/face_detection_service.dart';
 //import '../services/face_feature_service.dart';
 import '../services/firestore_service.dart';
 import '../services/facenet_service.dart';

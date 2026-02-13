@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 
 class FaceCaptureScreen extends StatefulWidget {
+  const FaceCaptureScreen({super.key});
+
   @override
   State<FaceCaptureScreen> createState() => _FaceCaptureScreenState();
 }

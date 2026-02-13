@@ -1,42 +1,63 @@
-import 'dart:typed_data';
+import 'dart:io';
+import 'package:flutter/services.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:tflite_flutter/tflite_flutter.dart';
 import 'package:image/image.dart' as img;
 
 class FaceNetService {
-  late Interpreter _interpreter;
+  Interpreter? _interpreter;
 
   Future<void> loadModel() async {
-    _interpreter = await Interpreter.fromAsset(
-      'models/mobilefacenet.tflite',
-    );
+    if (_interpreter != null) return;
+
+    // 1️⃣ Get app directory
+    final appDir = await getApplicationDocumentsDirectory();
+    final modelPath = '${appDir.path}/mobilefacenet.tflite';
+
+    // 2️⃣ Copy model from assets if not exists
+    final modelFile = File(modelPath);
+    if (!await modelFile.exists()) {
+      final byteData =
+          await rootBundle.load('assets/models/mobilefacenet.tflite');
+      await modelFile.writeAsBytes(byteData.buffer.asUint8List());
+    }
+
+    // 3️⃣ Load model from FILE (not asset)
+    _interpreter = await Interpreter.fromFile(modelFile);
   }
 
   List<double> getEmbedding(img.Image faceImage) {
-    final input = _imageToByteList(faceImage, 112);
+    if (_interpreter == null) {
+      throw Exception('FaceNet model not loaded');
+    }
+
+    final input = _imageToFloat32(faceImage);
     final output = List.filled(128, 0.0).reshape([1, 128]);
 
-    _interpreter.run(input, output);
+    _interpreter!.run(input, output);
 
     return List<double>.from(output[0]);
   }
 
-  Uint8List _imageToByteList(img.Image image, int size) {
-    final resized = img.copyResize(image, width: size, height: size);
-    final bytes = Float32List(1 * size * size * 3);
-    int index = 0;
+  List<List<List<List<double>>>> _imageToFloat32(img.Image image) {
+    final resized = img.copyResize(image, width: 112, height: 112);
 
-    for (var y = 0; y < size; y++) {
-      for (var x = 0; x < size; x++) {
-        final pixel = resized.getPixel(x, y);
-        bytes[index++] = (img.getRed(pixel) - 128) / 128;
-        bytes[index++] = (img.getGreen(pixel) - 128) / 128;
-        bytes[index++] = (img.getBlue(pixel) - 128) / 128;
-      }
-    }
-    return bytes.buffer.asUint8List();
+    return [
+      List.generate(112, (y) {
+        return List.generate(112, (x) {
+          final pixel = resized.getPixel(x, y);
+          return [
+            (pixel.r - 128) / 128,
+            (pixel.g - 128) / 128,
+            (pixel.b - 128) / 128,
+          ];
+        });
+      })
+    ];
   }
 
   void dispose() {
-    _interpreter.close();
+    _interpreter?.close();
+    _interpreter = null;
   }
 }

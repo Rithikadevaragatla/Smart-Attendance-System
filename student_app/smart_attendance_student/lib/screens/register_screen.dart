@@ -1,14 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+//import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'face_capture_screen.dart';
 //import '../services/local_storage_service.dart';
 import '../services/face_detection_service.dart';
-import '../services/face_feature_service.dart';
+//import '../services/face_feature_service.dart';
 import '../services/firestore_service.dart';
+import '../services/facenet_service.dart';
+import 'package:image/image.dart' as img;
+import 'dart:io';
+import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
+
 
 class RegisterScreen extends StatefulWidget {
+  const RegisterScreen({super.key});
+
   @override
   State<RegisterScreen> createState() => _RegisterScreenState();
 }
@@ -25,6 +32,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
     emailController.dispose();
     super.dispose();
   }
+
+  List<double> averageEmbeddings(List<List<double>> embeddings) {
+  final int length = embeddings.first.length;
+  final avg = List<double>.filled(length, 0.0);
+
+  for (final emb in embeddings) {
+    for (int i = 0; i < length; i++) {
+      avg[i] += emb[i];
+    }
+  }
+
+  for (int i = 0; i < length; i++) {
+    avg[i] /= embeddings.length;
+  }
+
+  return avg;
+}
+
 
   @override
   Widget build(BuildContext context) {
@@ -88,29 +113,74 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       throw Exception("Face capture cancelled");
                     }
                     // 2.5 Face detection + feature extraction
-                      final faceDetectionService = FaceDetectionService();
-                      final faceFeatureService = FaceFeatureService();
+                      final faceNetService = FaceNetService();
+                      await faceNetService.loadModel();
 
-                      Map<String, List<double>> embeddings = {};
-                      int index = 0;
+                      final List<List<double>> allEmbeddings = [];
+
+
+                      // Create FaceDetector ONCE
+                      final detector = FaceDetector(
+                        options: FaceDetectorOptions(
+                          performanceMode: FaceDetectorMode.accurate,
+                          enableLandmarks: false,
+                        ),
+                      );
 
                       for (final imagePath in images) {
-                        final hasFace = await faceDetectionService.hasFace(imagePath);
+                        // 1️⃣ Detect face
+                        final inputImage = InputImage.fromFile(File(imagePath));
+                        final faces = await detector.processImage(inputImage);
 
-                        if (!hasFace) {
-                          throw Exception("Face not detected properly. Please recapture.");
+                        if (faces.isEmpty) {
+                          detector.close();
+                          throw Exception("Face not detected. Please re-register.");
                         }
 
-                        final features =
-                            await faceFeatureService.extractFeatures(imagePath);
+                        final face = faces.first;
+                        final box = face.boundingBox;
 
-                        if (features == null) {
-                          throw Exception("Failed to extract face features.");
+                        // 2️⃣ Load original image
+                        final originalImage =
+                            img.decodeImage(File(imagePath).readAsBytesSync());
+
+                        if (originalImage == null) {
+                          detector.close();
+                          throw Exception("Failed to read image");
                         }
 
-                        embeddings['face_$index'] = features;
-                        index++;
+                        // 3️⃣ Safe crop
+                        final x = box.left.toInt().clamp(0, originalImage.width - 1);
+                        final y = box.top.toInt().clamp(0, originalImage.height - 1);
+
+                        final w = box.width.toInt().clamp(1, originalImage.width - x);
+                        final h = box.height.toInt().clamp(1, originalImage.height - y);
+
+                        final croppedFace = img.copyCrop(
+                          originalImage,
+                          x: x,
+                          y: y,
+                          width: w,
+                          height: h,
+                        );
+
+                        // 4️⃣ Generate FaceNet embedding
+                        final embedding = faceNetService.getEmbedding(croppedFace);
+                        allEmbeddings.add(embedding);
+
                       }
+
+                      // Cleanup
+                      detector.close();
+                      faceNetService.dispose();
+                      if (allEmbeddings.isEmpty) {
+                        throw Exception("No valid face embeddings generated");
+                      }
+
+                      final averagedEmbedding = averageEmbeddings(allEmbeddings);
+
+
+                    
 
 
                     // 3. Save images locally
@@ -126,7 +196,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       rollNo: rollController.text.trim(),
                       email: emailController.text.trim(),
                       faceUrls: facePaths,
-                      embeddings: embeddings, // local file paths
+                      embedding: averagedEmbedding, // local file paths
 
                     );
 

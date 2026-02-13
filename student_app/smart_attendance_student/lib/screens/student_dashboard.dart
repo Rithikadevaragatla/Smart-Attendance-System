@@ -7,7 +7,14 @@ import '../services/session_service.dart';
 import '../services/permission_service.dart';
 import 'face_attendance_capture.dart';
 import '../services/face_detection_service.dart';
-import '../services/face_feature_service.dart';
+//import '../services/face_feature_service.dart';
+import '../services/facenet_service.dart';
+import 'package:image/image.dart' as img;
+import 'dart:io';
+import 'dart:math';
+
+import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
+
 
 
 
@@ -54,6 +61,24 @@ class _StudentDashboardState extends State<StudentDashboard> {
     loading = false;
   });
 }
+double calculateDistance(List<double> e1, List<double> e2) {
+  double sum = 0.0;
+  for (int i = 0; i < e1.length; i++) {
+    sum += (e1[i] - e2[i]) * (e1[i] - e2[i]);
+  }
+  return sum;
+}
+   List<double> normalize(List<double> embedding) {
+                              double sum = 0.0;
+                              for (var v in embedding) {
+                                sum += v * v;
+                              }
+
+                              double magnitude = sqrt(sum);
+
+                              return embedding.map((e) => e / magnitude).toList();
+                            }
+
 
 
   @override
@@ -191,74 +216,122 @@ class _StudentDashboardState extends State<StudentDashboard> {
                           }
 
                           // 6️⃣ Extract live features
-                          final featureService = FaceFeatureService();
-                          final liveFeatures =
-                              await featureService.extractFeatures(imagePath);
-                          featureService.dispose();
+                          // Extract embedding using SAME model as registration
+                                  final faceNetService = FaceNetService();
+                                  await faceNetService.loadModel();
 
-                          if (liveFeatures == null) {
-                            showDialog(
-                              context: context,
-                              builder: (_) => const AlertDialog(
-                                title: Text("Error"),
-                                content: Text("Could not extract face features."),
-                              ),
-                            );
-                            return;
-                          }
+                                  // Load image
+                                  final originalImage =
+                                      img.decodeImage(File(imagePath).readAsBytesSync());
 
-                          // 7️⃣ Fetch stored embeddings
-                          final uid = FirebaseAuth.instance.currentUser!.uid;
-                          final doc = await FirebaseFirestore.instance
-                              .collection('students')
-                              .doc(uid)
-                              .get();
+                                  if (originalImage == null) {
+                                    throw Exception("Image error");
+                                  }
 
-                          final Map<String, dynamic> storedEmbeddings =
-                                  Map<String, dynamic>.from(doc['embeddings']);
+// You must crop face using SAME bounding box logic
+                              final inputImage = InputImage.fromFile(File(imagePath));
 
-                              double minDistance = double.infinity;
+                                  final detector = FaceDetector(
+                                    options: FaceDetectorOptions(
+                                      performanceMode: FaceDetectorMode.accurate,
+                                    ),
+                                  );
 
-                              for (final entry in storedEmbeddings.entries) {
-                                final List<double> stored =
-                                    List<double>.from(entry.value);
+                                  final List<Face> faces = await detector.processImage(inputImage);
 
-                                final dist =
-                                    FaceFeatureService.compare(liveFeatures, stored);
+                                  if (faces.isEmpty) {
+                                    detector.close();
+                                    throw Exception("Face not detected during cropping");
+                                  }
 
-                                print('Comparing ${entry.key}, distance = $dist');
+                                  final Rect box = faces.first.boundingBox;
 
-                                if (dist < minDistance) {
-                                  minDistance = dist;
-                                }
-                              }
-                            print('FINAL MIN DISTANCE = $minDistance');
+                                  detector.close();
 
-                                if (minDistance < 45.0) {
-                            // ✅ MATCH
-                            showDialog(
-                              context: context,
-                              builder: (_) => AlertDialog(
-                                title: const Text("Attendance Marked"),
-                                content: Text(
-                                  "Name: $studentName\nRoll No: $rollNo",
-                                ),
-                              ),
-                            );
 
-                            // TODO (next step): write attendance to Firestore
-                          } else {
-                            // ❌ NO MATCH
-                            showDialog(
-                              context: context,
-                              builder: (_) =>  AlertDialog(
-                                title: Text("Face Mismatch"),
-                                content: Text(
-                                  "Attendance not marked.\nDistance: ${minDistance.toStringAsFixed(2)}",
-                                ),
-                              ),
-                            );
-                          }
+                              
+
+                              final x = box.left.toInt().clamp(0, originalImage.width - 1);
+                              final y = box.top.toInt().clamp(0, originalImage.height - 1);
+                              final w = box.width.toInt().clamp(1, originalImage.width - x);
+                              final h = box.height.toInt().clamp(1, originalImage.height - y);
+
+                              final croppedFace = img.copyCrop(
+                                originalImage,
+                                x: x,
+                                y: y,
+                                width: w,
+                                height: h,
+                              );
+
+                              final liveFeatures =
+                                  faceNetService.getEmbedding(croppedFace);
+
+                              faceNetService.dispose();
+
+
+                          
+
+                        
+           // 7️⃣ Fetch stored embeddings
+// 7️⃣ Fetch stored embedding
+final uid = FirebaseAuth.instance.currentUser!.uid;
+final doc = await FirebaseFirestore.instance
+    .collection('students')
+    .doc(uid)
+    .get();
+
+final List<double> storedEmbedding =
+    List<double>.from(doc['embedding']);
+
+// Normalize both
+final normalizedLive = normalize(liveFeatures);
+final normalizedStored = normalize(storedEmbedding);
+
+// Calculate distance
+final distance =
+    calculateDistance(normalizedLive, normalizedStored);
+
+print("FINAL DISTANCE = $distance");
+
+if (distance < 0.8) {
+
+  await FirebaseFirestore.instance
+      .collection('sessions')
+      .doc(sessionId)
+      .collection('attendance')
+      .doc(uid)
+      .set({
+    'name': studentName,
+    'rollNo': rollNo,
+    'timestamp': Timestamp.now(),
+  });
+
+  showDialog(
+    context: context,
+    builder: (_) => AlertDialog(
+      title: const Text("Attendance Marked"),
+      content: Text(
+        "Name: $studentName\nRoll No: $rollNo",
+      ),
+    ),
+  );
+
+} else {
+
+  showDialog(
+    context: context,
+    builder: (_) => AlertDialog(
+      title: const Text("Face Mismatch"),
+      content: Text(
+        "Attendance not marked.\nDistance: ${distance.toStringAsFixed(2)}",
+      ),
+    ),
+  );
+}
+
+
+
                         } catch (e) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(content: Text("Error: $e")),

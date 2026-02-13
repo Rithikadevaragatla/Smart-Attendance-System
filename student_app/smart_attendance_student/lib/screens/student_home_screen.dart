@@ -4,7 +4,7 @@ import '../services/session_service.dart';
 import 'face_capture_screen.dart';
 
 class StudentHomeScreen extends StatelessWidget {
-  const StudentHomeScreen({Key? key}) : super(key: key);
+  const StudentHomeScreen({super.key});
 
   @override
   Widget build(BuildContext context) {

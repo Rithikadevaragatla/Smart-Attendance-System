@@ -9,6 +9,8 @@ void main() async {
 }
 
 class StudentApp extends StatelessWidget {
+  const StudentApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(

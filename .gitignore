@@ -1,0 +1,12 @@
+# Firebase config files
+student_app/smart_attendance_student/android/app/google-services.json
+teacher_app/smart_attendance_teacher/android/app/google-services.json
+
+# Android signing keys
+*.keystore
+*.jks
+
+# Build files
+build/
+.gradle/
+.dart_tool/

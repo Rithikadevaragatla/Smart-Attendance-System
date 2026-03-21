@@ -37,3 +37,4 @@ flutter:
   uses-material-design: true
   assets:
     - assets/models/mobilefacenet.tflite
+    - assets/gcet_logo.png

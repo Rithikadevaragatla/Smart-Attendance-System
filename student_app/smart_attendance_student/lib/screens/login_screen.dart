@@ -23,16 +23,72 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Student Login'),
-      ),
-      body: Padding(
+ @override
+Widget build(BuildContext context) {
+
+  final logoColor = const Color(0xFF2E1A8A); // similar to logo shade
+
+  return Scaffold(
+    appBar: AppBar(
+      title: const Text('Student Login'),
+    ),
+    body: SingleChildScrollView(
+      child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
+
+            /// COLLEGE LOGO
+            Image.asset(
+              "assets/gcet_logo.png",
+              width: MediaQuery.of(context).size.width * 0.25,
+            ),
+
+            const SizedBox(height: 10),
+
+            /// COLLEGE NAME
+            Text(
+              "Geethanjali College of Engineering and Technology (Autonomous)",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: logoColor,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                fontFamily: "Sans-serif",
+              ),
+            ),
+
+            
+            
+
+            const SizedBox(height: 5),
+
+            /// ACCREDITATION
+            Text(
+              "Accredited by NAAC with A+ Grade; B.Tech. CSE, EEE, ECE accredited by NBA",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: logoColor,
+                fontSize: 12,
+                fontFamily: "Sans-serif",
+              ),
+            ),
+
+            /// ADDRESS
+            Text(
+              "Sy. No: 33 & 34, Cheeryal (V), Keesara (M), Medchal District, Telangana – 501301",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: logoColor,
+                fontSize: 12,
+                fontFamily: "Sans-serif",
+              ),
+            ),
+
+            const SizedBox(height: 30),
+
+            /// EMAIL FIELD
             TextField(
               controller: emailController,
               decoration: const InputDecoration(
@@ -40,8 +96,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 border: OutlineInputBorder(),
               ),
             ),
+
             const SizedBox(height: 15),
 
+            /// PASSWORD FIELD
             TextField(
               controller: passwordController,
               obscureText: true,
@@ -50,6 +108,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 border: OutlineInputBorder(),
               ),
             ),
+
             const SizedBox(height: 20),
 
             SizedBox(
@@ -58,24 +117,20 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: const Text('Login'),
                 onPressed: () async {
                   try {
-                    print("LOGIN BUTTON CLICKED");
-
                     final userCredential = await FirebaseAuth.instance
                         .signInWithEmailAndPassword(
                       email: emailController.text.trim(),
                       password: passwordController.text.trim(),
                     );
 
-                    print("LOGIN SUCCESS: ${userCredential.user!.uid}");
-
                     Navigator.pushReplacement(
                       context,
                       MaterialPageRoute(
-                         builder: (_) => const StudentDashboard()),
-                      
+                        builder: (_) => const StudentDashboard(),
+                      ),
                     );
+
                   } catch (e) {
-                    print("LOGIN ERROR: $e");
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text(e.toString())),
                     );
@@ -96,6 +151,7 @@ class _LoginScreenState extends State<LoginScreen> {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

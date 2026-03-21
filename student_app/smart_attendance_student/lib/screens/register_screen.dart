@@ -61,6 +61,50 @@ class _RegisterScreenState extends State<RegisterScreen> {
         padding: const EdgeInsets.all(20),
         child: ListView(
           children: [
+            // College Logo
+            Image.asset(
+              "assets/gcet_logo.png",
+              width: MediaQuery.of(context).size.width * 0.18,
+              height: 70,
+              fit: BoxFit.contain,
+            ),
+
+            SizedBox(height: 10),
+
+            // Line 1
+            Text(
+              "Geethanjali College of Engineering and Technology (Autonomous)",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Color(0xFF2E1A8A),
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+
+            
+
+            // Line 3
+            Text(
+              "Accredited by NAAC with A+ Grade; B.Tech. CSE, EEE, ECE accredited by NBA",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Color(0xFF2E1A8A),
+                fontSize: 12,
+              ),
+            ),
+
+            // Line 4
+            Text(
+              "Sy. No: 33 & 34, Cheeryal (V), Keesara (M), Medchal District, Telangana – 501301",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Color(0xFF2E1A8A),
+                fontSize: 12,
+              ),
+            ),
+
+            SizedBox(height: 30),
             TextField(
               controller: nameController,
               decoration: InputDecoration(
@@ -201,9 +245,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     );
 
                     // 5. Success
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text("Registration successful"),
+                    await showDialog(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text("Registration successful"),
+                        actions: [
+                          TextButton(
+                            onPressed: () {
+                              Navigator.pop(context); // close popup
+                              Navigator.pop(context); // go back to login screen
+                            },
+                            child: const Text("OK"),
+                          ),
+                        ],
                       ),
                     );
 

@@ -28,6 +28,8 @@ class StudentDashboard extends StatefulWidget {
 class _StudentDashboardState extends State<StudentDashboard> {
   String studentName = "";
   String rollNo = "";
+  String studentClass = "";   // NEW
+  String studentSection = ""; // NEW
   bool loading = true;
 
   @override
@@ -58,9 +60,17 @@ class _StudentDashboardState extends State<StudentDashboard> {
   setState(() {
     studentName = doc['name'];
     rollNo = doc['rollNo'];
+    studentClass = doc['class'] ?? "";
+    studentSection = doc['section'] ?? "";
     loading = false;
   });
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(content: Text("Class not assigned. Contact admin.")),
+  );
+});
 }
+
 double calculateDistance(List<double> e1, List<double> e2) {
   double sum = 0.0;
   for (int i = 0; i < e1.length; i++) {
@@ -168,25 +178,44 @@ double calculateDistance(List<double> e1, List<double> e2) {
                           final bleService = BleService();
                           final sessionService = SessionService();
 
-                          final sessionId = await bleService.scanForSessionId();
+                          final sessionData = await bleService.scanForSession();
+                          
 
-                          if (sessionId == null) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text("No active class nearby")),
-                            );
-                            return;
-                          }
+if (sessionData == null) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(content: Text("No active class nearby")),
+  );
+  return;
+}
+
+final sessionId = sessionData["sessionId"] ?? "";
+final sessionClass = sessionData["class"] ?? "";
+final sessionSection = sessionData["section"] ?? "";
+
+                         
+                          if (sessionClass != studentClass || sessionSection != studentSection) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text("This session is not for your class")),
+                          );
+                          return;
+                        }
+                           
 
                           // 3️⃣ Validate session
-                          final isActive =
-                              await sessionService.isSessionActive(sessionId);
+                         final isValid = await sessionService.validateSession(
+                                sessionId: sessionId,
+                                studentClass: studentClass,
+                                studentSection: studentSection,
+                              );
 
-                          if (!isActive) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text("Session is no longer active")),
-                            );
-                            return;
-                          }
+                              if (!isValid) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text("Invalid session")),
+                                );
+                                return;
+                              }
+
+                          
 
                           // 4️⃣ Open camera
                           final imagePath = await Navigator.push(

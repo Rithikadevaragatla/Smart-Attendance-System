@@ -6,34 +6,42 @@ class BleService {
 
   /// Scans BLE advertisements and extracts sessionId
   /// from manufacturer data with ID = 1234
-  Future<String?> scanForSessionId() async {
-    String? sessionId;
+ Future<Map<String, String>?> scanForSession() async {
+  Map<String, String>? foundSession;
 
-    // Start BLE scan
-    await FlutterBluePlus.startScan(
-      timeout: const Duration(seconds: 6),
-    );
+  await FlutterBluePlus.startScan(
+    timeout: const Duration(seconds: 6),
+  );
 
-    _scanSub = FlutterBluePlus.scanResults.listen((results) {
-      for (ScanResult result in results) {
-        final manufacturerData =
-            result.advertisementData.manufacturerData;
+  _scanSub = FlutterBluePlus.scanResults.listen((results) {
+    for (ScanResult result in results) {
+      final manufacturerData =
+          result.advertisementData.manufacturerData;
 
-        if (manufacturerData.containsKey(1234)) {
-          final List<int> rawData = manufacturerData[1234]!;
-          sessionId = String.fromCharCodes(rawData);
+      if (manufacturerData.containsKey(1234)) {
+        final List<int> rawData = manufacturerData[1234]!;
+        final data = String.fromCharCodes(rawData);
+
+        // Expected: sessionId|CSE|A
+        final parts = data.split("|");
+
+        if (parts.length == 3) {
+          foundSession = {
+            "sessionId": parts[0],
+            "class": parts[1],
+            "section": parts[2],
+          };
           break;
         }
       }
-    });
+    }
+  });
 
-    // Wait for scan duration
-    await Future.delayed(const Duration(seconds: 6));
+  await Future.delayed(const Duration(seconds: 6));
 
-    // Stop scan
-    await FlutterBluePlus.stopScan();
-    await _scanSub?.cancel();
+  await FlutterBluePlus.stopScan();
+  await _scanSub?.cancel();
 
-    return sessionId;
-  }
+  return foundSession;
+}
 }

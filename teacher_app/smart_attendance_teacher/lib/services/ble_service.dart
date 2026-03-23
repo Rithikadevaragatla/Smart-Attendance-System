@@ -5,15 +5,15 @@ import 'package:flutter/foundation.dart';
 class BleService {
   static final FlutterBlePeripheral _ble = FlutterBlePeripheral();
 
-  static Future<void> startAdvertising(String sessionId) async {
+  static Future<void> startAdvertising(String payload) async {
     debugPrint("🔵 BLE STARTED");
-    debugPrint("Broadcasting sessionId: $sessionId");
+    debugPrint("Broadcasting sessionId: $payload");
 
     await _ble.start(
       advertiseData: AdvertiseData(
         includeDeviceName: false,
         manufacturerId: 1234,
-        manufacturerData: Uint8List.fromList(sessionId.codeUnits),
+        manufacturerData: Uint8List.fromList(payload.codeUnits),
       ),
     );
   }

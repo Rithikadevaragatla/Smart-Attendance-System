@@ -19,10 +19,13 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
   String? _activeSessionId;
   bool _isLoading = false;
 
-  String? selectedSubject;
+  //String? selectedSubject;
   String facultyName = "Faculty";
 
-  List<String> subjects = [];
+  //List<String> subjects = [];
+  List<dynamic> assignments = [];
+  Map<String, dynamic>? selectedAssignment;
+  String? department;
 
   Timer? _timer;
   Duration sessionDuration = Duration.zero;
@@ -57,15 +60,15 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
     if (doc.exists) {
 
       final data = doc.data()!;
-      List<dynamic> subjectList = data['subjects'] ?? [];
+      assignments = data['assignments'] ?? [];
 
       setState(() {
 
         facultyName = data['name'] ?? "Faculty";
-        subjects = subjectList.cast<String>();
+        department = data['department'];
 
-        if (subjects.isNotEmpty) {
-          selectedSubject = subjects.first;
+        if (assignments.isNotEmpty) {
+          selectedAssignment = assignments.first;
         }
 
       });
@@ -74,8 +77,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
 
   /* SUBJECT DROPDOWN */
 
-  Widget subjectDropdown() {
-
+  Widget assignmentDropdown() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14),
       decoration: BoxDecoration(
@@ -85,34 +87,28 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
       ),
 
       child: DropdownButtonHideUnderline(
-
-        child: DropdownButton<String>(
-
-          value: selectedSubject,
+        child: DropdownButton<Map<String, dynamic>>(
+          value: selectedAssignment,
           isExpanded: true,
-
-          hint: const Text("Select Subject"),
-
-          items: subjects.map((subject) {
-
-            return DropdownMenuItem(
-              value: subject,
-              child: Text(subject),
+          hint: const Text("Select Class"),
+          items: assignments
+              .map<DropdownMenuItem<Map<String, dynamic>>>((a) {
+            return DropdownMenuItem<Map<String, dynamic>>(
+              value: a,
+              child: Text(
+                "${a['subject']} - ${department ?? ""} ${a['year']}${a['section']}"
+              ),
             );
-
-          }).toList(),
-
-          onChanged: (value) {
-
-            setState(() {
-              selectedSubject = value;
-            });
-
-          },
-        ),
+        }).toList(),
+        onChanged: (Map<String, dynamic>? value) {
+          setState(() {
+            selectedAssignment = value;
+          });
+        },
       ),
-    );
-  }
+    ),
+  );
+}
 
   /* TIMER */
 
@@ -149,7 +145,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
 
   Future<void> _startSession() async {
 
-    if (_isLoading || selectedSubject == null) return;
+    if (_isLoading || selectedAssignment == null) return;
 
     setState(() => _isLoading = true);
 
@@ -166,14 +162,19 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
         'teacherId': user.uid,
         'teacherEmail': user.email,
         'facultyName': facultyName,
-        'subject': selectedSubject,
+        'subject': selectedAssignment!['subject'],
+        'department': department,
+        'year': selectedAssignment!['year'],
+        'section': selectedAssignment!['section'],
         'date': now,
         'startTime': now,
         'isActive': true,
 
       });
 
-      await BleService.startAdvertising(sessionRef.id);
+      String payload =
+          "${sessionRef.id}|${selectedAssignment!['subject']}|$department|${selectedAssignment!['year']}|${selectedAssignment!['section']}";
+      await BleService.startAdvertising(payload);
 
       startTimestamp = now;
       startTimer();
@@ -294,7 +295,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                   _logout();
                 },
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
             ],
           ),
         );
@@ -323,8 +324,11 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
         return FutureBuilder<QuerySnapshot>(
 
           future: FirebaseFirestore.instance
-              .collection('students')
-              .get(),
+            .collection('students')
+            .where('department', isEqualTo: department)
+            .where('year', isEqualTo: selectedAssignment!['year'])
+            .where('section', isEqualTo: selectedAssignment!['section'])
+            .get(),
 
           builder: (context, studentSnap) {
 
@@ -339,7 +343,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
               children: [
 
                 Text(
-                  "Students Present : $present / $total",
+                  "Class Attendance : $present / $total",
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w600,
@@ -416,7 +420,9 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
             const SizedBox(height: 10),
 
             Text(
-              "Subject : ${selectedSubject ?? ""}",
+              selectedAssignment == null
+                  ? "Class : -"
+                  : "Class : ${selectedAssignment!['subject']} - ${department ?? ""} ${selectedAssignment!['year']}${selectedAssignment!['section']}",
               style: const TextStyle(color: Colors.white70),
             ),
 
@@ -488,23 +494,33 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
 
   /* STUDENT COUNTER */
 
-  Widget studentCounter() {
+Widget studentCounter() {
 
-    return StreamBuilder<QuerySnapshot>(
-
-      stream: FirebaseFirestore.instance
-          .collection('students')
-          .snapshots(),
-
-      builder: (context, snapshot) {
-
-        int totalStudents = snapshot.data?.docs.length ?? 0;
-
-        return statCard(
-            Icons.people, "Students", totalStudents.toString(), Colors.blue);
-      },
-    );
+  if (selectedAssignment == null) {
+    return statCard(Icons.people, "Students", "0", Colors.blue);
   }
+
+  return StreamBuilder<QuerySnapshot>(
+
+    stream: FirebaseFirestore.instance
+        .collection('students')
+        .where('department', isEqualTo: department)
+        .where('year', isEqualTo: selectedAssignment!['year'])
+        .where('section', isEqualTo: selectedAssignment!['section'])
+        .snapshots(),
+    builder: (context, snapshot) {
+
+      int totalStudents = snapshot.data?.docs.length ?? 0;
+
+      return statCard(
+        Icons.people,
+        "Students",
+        totalStudents.toString(),
+        Colors.blue,
+      );
+    },
+  );
+}
 
   /* SESSION COUNTER */
 
@@ -584,13 +600,13 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
             const SizedBox(height: 20),
 
             const Text(
-              "Select Subject",
+              "Select Class",
               style: TextStyle(color: Colors.grey),
             ),
 
             const SizedBox(height: 8),
 
-            subjectDropdown(),
+            assignmentDropdown(),
 
             const SizedBox(height: 20),
 
@@ -638,7 +654,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                     style: TextStyle(fontSize: 16),
                   ),
 
-                  onPressed: _isLoading || subjects.isEmpty
+                  onPressed: _isLoading || assignments.isEmpty || selectedAssignment == null
                       ? null
                       : _startSession,
                 ),

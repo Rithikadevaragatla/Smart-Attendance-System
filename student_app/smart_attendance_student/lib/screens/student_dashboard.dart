@@ -28,8 +28,9 @@ class StudentDashboard extends StatefulWidget {
 class _StudentDashboardState extends State<StudentDashboard> {
   String studentName = "";
   String rollNo = "";
-  String studentClass = "";   // NEW
-  String studentSection = ""; // NEW
+  String studentDept = "";
+  String studentYear = "";
+  String studentSection = "";// NEW
   bool loading = true;
 
   @override
@@ -60,15 +61,21 @@ class _StudentDashboardState extends State<StudentDashboard> {
   setState(() {
     studentName = doc['name'];
     rollNo = doc['rollNo'];
-    studentClass = doc['class'] ?? "";
+    studentDept = doc['department'] ?? "";
+    studentYear = doc['year'] ?? "";
     studentSection = doc['section'] ?? "";
     loading = false;
   });
+  if (studentDept.isEmpty ||
+    studentYear.isEmpty ||
+    studentSection.isEmpty) {
+
   WidgetsBinding.instance.addPostFrameCallback((_) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    const SnackBar(content: Text("Class not assigned. Contact admin.")),
-  );
-});
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Class not assigned. Contact admin.")),
+    );
+  });
+}
 }
 
 double calculateDistance(List<double> e1, List<double> e2) {
@@ -189,11 +196,13 @@ if (sessionData == null) {
 }
 
 final sessionId = sessionData["sessionId"] ?? "";
-final sessionClass = sessionData["class"] ?? "";
+final sessionDept = sessionData["department"] ?? "";
+final sessionYear = sessionData["year"] ?? "";
 final sessionSection = sessionData["section"] ?? "";
 
                          
-                          if (sessionClass != studentClass || sessionSection != studentSection) {
+                          if (sessionDept != studentDept ||
+    sessionYear != studentYear  || sessionSection != studentSection) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text("This session is not for your class")),
                           );
@@ -204,7 +213,8 @@ final sessionSection = sessionData["section"] ?? "";
                           // 3️⃣ Validate session
                          final isValid = await sessionService.validateSession(
                                 sessionId: sessionId,
-                                studentClass: studentClass,
+                                studentDept: studentDept,
+                                studentYear: studentYear,
                                 studentSection: studentSection,
                               );
 

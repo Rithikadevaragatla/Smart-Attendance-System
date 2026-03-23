@@ -25,11 +25,13 @@ class BleService {
         // Expected: sessionId|CSE|A
         final parts = data.split("|");
 
-        if (parts.length == 3) {
+        if (parts.length == 5) {
           foundSession = {
             "sessionId": parts[0],
-            "class": parts[1],
-            "section": parts[2],
+            "subject": parts[1],
+            "department": parts[2],
+            "year": parts[3],
+            "section": parts[4],
           };
           break;
         }

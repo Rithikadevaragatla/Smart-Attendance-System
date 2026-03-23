@@ -18,7 +18,8 @@ class FirestoreService {
       'faceImages': faceUrls,
       'createdAt': Timestamp.now(),
       'embedding': embedding,   // ✅ store single embedding
-      'class': "",
+      'department': "",
+      'year': "",
       'section': "",
     });
   }

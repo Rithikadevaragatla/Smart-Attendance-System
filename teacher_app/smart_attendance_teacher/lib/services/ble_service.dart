@@ -1,4 +1,3 @@
-import 'dart:typed_data';
 import 'package:flutter_ble_peripheral/flutter_ble_peripheral.dart';
 import 'package:flutter/foundation.dart';
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../auth/teacher_login.dart';
+import 'student_list_page.dart';
 
 class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key});
@@ -87,7 +88,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   _logout();
                 },
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
             ],
           ),
         );
@@ -226,7 +227,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
       stream: FirebaseFirestore.instance
           .collection("sessions")
           .orderBy("date", descending: true)
-          .limit(5)
+          .limit(4)
           .snapshots(),
 
       builder: (context, snapshot) {
@@ -362,156 +363,241 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   /* ---------------- ADD FACULTY ---------------- */
 
-  void _showAddFacultyDialog(BuildContext context) {
+ void _showAddFacultyDialog(BuildContext context) {
 
-    final nameController = TextEditingController();
-    final emailController = TextEditingController();
-    final deptController = TextEditingController();
+  final nameController = TextEditingController();
+  final emailController = TextEditingController();
+  final deptController = TextEditingController();
 
-    selectedSubjects = [];
+  List<String> selectedSubjects = [];
 
-    showDialog(
-      context: context,
-      builder: (_) {
-        return StatefulBuilder(
-          builder: (context, setStateDialog) {
+  String selectedYear = "3";
+  String selectedSection = "A";
 
-            return AlertDialog(
-              title: const Text("Add Faculty"),
+  List<String> years = ["1", "2", "3", "4"];
+  List<String> sections = ["A", "B", "C"];
 
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
+  showDialog(
+    context: context,
+    builder: (_) {
+      return StatefulBuilder(
+        builder: (context, setStateDialog) {
 
-                    TextField(
-                      controller: nameController,
-                      decoration: const InputDecoration(
-                        labelText: "Faculty Name",
-                      ),
+          return AlertDialog(
+            title: const Text("Add Faculty"),
+
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+
+                  /// NAME
+                  TextField(
+                    controller: nameController,
+                    decoration: const InputDecoration(
+                      labelText: "Faculty Name",
                     ),
+                  ),
 
-                    const SizedBox(height: 10),
+                  const SizedBox(height: 10),
 
-                    TextField(
-                      controller: emailController,
-                      decoration:
-                          const InputDecoration(labelText: "Email"),
+                  /// EMAIL
+                  TextField(
+                    controller: emailController,
+                    decoration: const InputDecoration(
+                      labelText: "Email",
                     ),
+                  ),
 
-                    const SizedBox(height: 10),
+                  const SizedBox(height: 10),
 
-                    TextField(
-                      controller: deptController,
-                      decoration: const InputDecoration(
-                        labelText: "Department",
-                      ),
+                  /// DEPARTMENT
+                  TextField(
+                    controller: deptController,
+                    decoration: const InputDecoration(
+                      labelText: "Department",
                     ),
+                  ),
 
-                    const SizedBox(height: 15),
+                  const SizedBox(height: 15),
 
-                    const Align(
+                  /// SUBJECTS
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      "Assign Subjects",
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: subjects.map((subject) {
+                      return CheckboxListTile(
+                        value: selectedSubjects.contains(subject),
+                        title: Text(subject),
+                        onChanged: (value) {
+                          setStateDialog(() {
+                            if (value == true) {
+                              selectedSubjects.add(subject);
+                            } else {
+                              selectedSubjects.remove(subject);
+                            }
+                          });
+                        },
+                      );
+                    }).toList(),
+                  ),
+
+                  const SizedBox(height: 15),
+
+                  /// YEAR DROPDOWN
+                  DropdownButtonFormField<String>(
+                    value: selectedYear,
+                    decoration: const InputDecoration(labelText: "Year"),
+                    items: years.map((y) {
+                      return DropdownMenuItem(
+                        value: y,
+                        child: Text("Year $y"),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      setStateDialog(() {
+                        selectedYear = value!;
+                      });
+                    },
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  /// SECTION DROPDOWN
+                  DropdownButtonFormField<String>(
+                    value: selectedSection,
+                    decoration: const InputDecoration(labelText: "Section"),
+                    items: sections.map((s) {
+                      return DropdownMenuItem(
+                        value: s,
+                        child: Text("Section $s"),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      setStateDialog(() {
+                        selectedSection = value!;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 15),
+
+                    Align(
                       alignment: Alignment.centerLeft,
                       child: Text(
-                        "Assign Subjects",
-                        style: TextStyle(fontWeight: FontWeight.bold),
+                        "Preview:",
+                      style: TextStyle(fontWeight: FontWeight.bold),
                       ),
                     ),
 
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 5),
 
                     Column(
-                      children: subjects.map((subject) {
-
-                        return CheckboxListTile(
-                          value: selectedSubjects.contains(subject),
-                          title: Text(subject),
-
-                          onChanged: (value) {
-
-                            setStateDialog(() {
-
-                              if (value == true) {
-                                selectedSubjects.add(subject);
-                              } else {
-                                selectedSubjects.remove(subject);
-                              }
-
-                            });
-                          },
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: selectedSubjects.map((subject) {
+                        return Text(
+                          "$subject - ${(deptController.text.isEmpty ? "Dept" : deptController.text)} $selectedYear$selectedSection",
+                          style: const TextStyle(color: Colors.grey),
                         );
                       }).toList(),
-                    )
-                  ],
-                ),
+                    ),
+                ],
+              ),
+            ),
+
+            actions: [
+
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text("Cancel"),
               ),
 
-              actions: [
+              ElevatedButton(
+                child: const Text("Create"),
+                onPressed: () async {
 
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text("Cancel"),
-                ),
+                  final email = emailController.text.trim();
 
-                ElevatedButton(
-                  child: const Text("Create"),
-                  onPressed: () async {
-
-                    final email = emailController.text.trim();
-
-                    if (nameController.text.isEmpty ||
-                        email.isEmpty ||
-                        deptController.text.isEmpty) {
-                      return;
-                    }
-
-                    final doc = await FirebaseFirestore.instance
-                        .collection("teachers")
-                        .doc(email)
-                        .get();
-
-                    if (doc.exists) {
-
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text("Faculty already exists"),
-                        ),
-                      );
-
-                      return;
-                    }
-
-                    await FirebaseFirestore.instance
-                        .collection("teachers")
-                        .doc(email)
-                        .set({
-
-                      "name": nameController.text.trim(),
-                      "email": email,
-                      "department": deptController.text.trim(),
-                      "subjects": selectedSubjects,
-                      "role": "faculty",
-                      "createdAt": Timestamp.now(),
-
-                    });
-
-                    Navigator.pop(context);
+                  if (nameController.text.isEmpty ||
+                      email.isEmpty ||
+                      deptController.text.isEmpty ||
+                      selectedSubjects.isEmpty) {
 
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text("Faculty added successfully"),
+                        content: Text("Please fill all fields"),
                       ),
                     );
-                  },
-                )
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
+                    return;
+                  }
+                  // 🔥 Remove duplicates (safety)
+                  selectedSubjects = selectedSubjects.toSet().toList();
 
+                  /// CHECK IF EXISTS
+                  final doc = await FirebaseFirestore.instance
+                      .collection("teachers")
+                      .doc(email)
+                      .get();
+
+                  if (doc.exists) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text("Faculty already exists"),
+                      ),
+                    );
+                    return;
+                  }
+
+                  /// 🔥 CREATE ASSIGNMENTS ARRAY
+                  List<Map<String, dynamic>> assignments =
+                      selectedSubjects.map((subject) {
+                    return {
+                      "subject": subject,
+                      //"department": deptController.text.trim(),
+                      "year": int.parse(selectedYear),
+                      "section": selectedSection,
+                    };
+                  }).toList();
+
+                  /// 🔥 SAVE TO FIRESTORE
+                  await FirebaseFirestore.instance
+                      .collection("teachers")
+                      .doc(email)
+                      .set({
+
+                    "name": nameController.text.trim(),
+                    "email": email,
+                    "department": deptController.text.trim(),
+                    "assignments": assignments,
+                    "role": "faculty",
+                    "createdAt": Timestamp.now(),
+
+                  });
+
+                  Navigator.pop(context);
+
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text("Faculty added successfully"),
+                    ),
+                  );
+                },
+              )
+            ],
+          );
+        },
+      );
+    },
+  );
+}
   Future<void> _deleteFaculty(String id) async {
 
     await FirebaseFirestore.instance
@@ -574,6 +660,28 @@ class _AdminDashboardState extends State<AdminDashboard> {
             const SizedBox(height: 30),
 
             recentSessions(),
+            const SizedBox(height: 20),
+
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+              icon: const Icon(Icons.people),
+              label: const Text("View Students"),
+              style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 14),
+            ),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const StudentListPage(),
+                  ),
+                );
+              },
+            ),
+          ),
+
+            const SizedBox(height: 20),
 
             const SizedBox(height: 30),
 

@@ -44,8 +44,6 @@ class _TeacherSignupPageState extends State<TeacherSignupPage> {
         errorMessage = "";
       });
 
-      /* CHECK IF ADMIN ADDED THIS TEACHER */
-
       final teacherDoc = await FirebaseFirestore.instance
           .collection("teachers")
           .doc(email)
@@ -63,14 +61,10 @@ class _TeacherSignupPageState extends State<TeacherSignupPage> {
         return;
       }
 
-      /* CREATE FIREBASE AUTH ACCOUNT */
-
       await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
-
-      /* SIGN OUT AFTER SIGNUP (VERY IMPORTANT) */
 
       await FirebaseAuth.instance.signOut();
 
@@ -105,77 +99,120 @@ class _TeacherSignupPageState extends State<TeacherSignupPage> {
   @override
   Widget build(BuildContext context) {
 
+    final logoColor = const Color(0xFF2E1A8A);
+
     return Scaffold(
 
       appBar: AppBar(
         title: const Text("Faculty Signup"),
       ),
 
-      body: Padding(
-        padding: const EdgeInsets.all(20),
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
 
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
 
-            const Icon(
-              Icons.person_add,
-              size: 70,
-              color: Colors.indigo,
-            ),
-
-            const SizedBox(height: 20),
-
-            const Text(
-              "Create Faculty Account",
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
+              /// COLLEGE LOGO
+              Image.asset(
+                "assets/gcet_logo.png",
+                width: MediaQuery.of(context).size.width * 0.25,
               ),
-            ),
 
-            const SizedBox(height: 30),
+              const SizedBox(height: 10),
 
-            TextField(
-              controller: _emailController,
-              decoration: const InputDecoration(
-                labelText: "Faculty Email",
-                border: OutlineInputBorder(),
-              ),
-            ),
-
-            const SizedBox(height: 15),
-
-            TextField(
-              controller: _passwordController,
-              obscureText: true,
-              decoration: const InputDecoration(
-                labelText: "Password",
-                border: OutlineInputBorder(),
-              ),
-            ),
-
-            const SizedBox(height: 10),
-
-            if (errorMessage.isNotEmpty)
+              /// COLLEGE NAME
               Text(
-                errorMessage,
-                style: const TextStyle(color: Colors.red),
+                "Geethanjali College of Engineering and Technology (Autonomous)",
                 textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: logoColor,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
 
-            const SizedBox(height: 20),
+              const SizedBox(height: 5),
 
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                minimumSize: const Size(double.infinity, 50),
+              /// ACCREDITATION
+              Text(
+                "Accredited by NAAC with A+ Grade; B.Tech. CSE, EEE, ECE accredited by NBA",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: logoColor,
+                  fontSize: 12,
+                ),
               ),
-              onPressed: loading ? null : createAccount,
-              child: loading
-                  ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text("Create Account"),
-            ),
-          ],
+
+              /// ADDRESS
+              Text(
+                "Sy. No: 33 & 34, Cheeryal (V), Keesara (M), Medchal District, Telangana – 501301",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: logoColor,
+                  fontSize: 12,
+                ),
+              ),
+
+              const SizedBox(height: 30),
+
+              /// TITLE
+              const Text(
+                "Create Faculty Account",
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+
+              const SizedBox(height: 30),
+
+              /// EMAIL
+              TextField(
+                controller: _emailController,
+                decoration: const InputDecoration(
+                  labelText: "Faculty Email",
+                  border: OutlineInputBorder(),
+                ),
+              ),
+
+              const SizedBox(height: 15),
+
+              /// PASSWORD
+              TextField(
+                controller: _passwordController,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: "Password",
+                  border: OutlineInputBorder(),
+                ),
+              ),
+
+              const SizedBox(height: 10),
+
+              if (errorMessage.isNotEmpty)
+                Text(
+                  errorMessage,
+                  style: const TextStyle(color: Colors.red),
+                  textAlign: TextAlign.center,
+                ),
+
+              const SizedBox(height: 20),
+
+              /// BUTTON
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  minimumSize: const Size(double.infinity, 50),
+                ),
+                onPressed: loading ? null : createAccount,
+                child: loading
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text("Create Account"),
+              ),
+            ],
+          ),
         ),
       ),
     );

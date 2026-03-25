@@ -14,7 +14,7 @@ class AdminDashboard extends StatefulWidget {
 class _AdminDashboardState extends State<AdminDashboard> {
 
   List<String> subjects = [];
-  List<String> selectedSubjects = [];
+  //List<String> selectedSubjects = [];
 
   @override
   void initState() {
@@ -105,7 +105,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
     setState(() {
       subjects =
-          snapshot.docs.map((doc) => doc["name"] as String).toList();
+        snapshot.docs.map((doc) => (doc["name"] as String).trim()).toList();
     });
   }
 
@@ -218,70 +218,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
     );
   }
 
-  /* ---------------- RECENT SESSIONS ---------------- */
-
-  Widget recentSessions() {
-
-    return StreamBuilder<QuerySnapshot>(
-
-      stream: FirebaseFirestore.instance
-          .collection("sessions")
-          .orderBy("date", descending: true)
-          .limit(4)
-          .snapshots(),
-
-      builder: (context, snapshot) {
-
-        if (!snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        final sessions = snapshot.data!.docs;
-
-        if (sessions.isEmpty) {
-          return const Text("No sessions yet");
-        }
-
-        return Column(
-
-          crossAxisAlignment: CrossAxisAlignment.start,
-
-          children: [
-
-            const Text(
-              "Recent Sessions",
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-
-            const SizedBox(height: 10),
-
-            ...sessions.map((session) {
-
-              final data =
-                  session.data() as Map<String, dynamic>;
-
-              return Card(
-                child: ListTile(
-
-                  leading: const Icon(Icons.event),
-
-                  title: Text(data["subject"] ?? ""),
-
-                  subtitle:
-                      Text(data["facultyName"] ?? ""),
-
-                ),
-              );
-            })
-          ],
-        );
-      },
-    );
-  }
-
+  
   /* ---------------- ADD SUBJECT ---------------- */
 
   void _showAddSubjectDialog(BuildContext context) {
@@ -369,13 +306,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
   final emailController = TextEditingController();
   final deptController = TextEditingController();
 
-  List<String> selectedSubjects = [];
+  List<String> dialogSelectedSubjects = [];
 
-  String selectedYear = "3";
-  String selectedSection = "A";
-
-  List<String> years = ["1", "2", "3", "4"];
-  List<String> sections = ["A", "B", "C"];
 
   showDialog(
     context: context,
@@ -436,14 +368,14 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: subjects.map((subject) {
                       return CheckboxListTile(
-                        value: selectedSubjects.contains(subject),
+                        value: dialogSelectedSubjects.contains(subject),
                         title: Text(subject),
                         onChanged: (value) {
                           setStateDialog(() {
                             if (value == true) {
-                              selectedSubjects.add(subject);
+                              dialogSelectedSubjects.add(subject);
                             } else {
-                              selectedSubjects.remove(subject);
+                              dialogSelectedSubjects.remove(subject);
                             }
                           });
                         },
@@ -451,43 +383,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     }).toList(),
                   ),
 
-                  const SizedBox(height: 15),
 
-                  /// YEAR DROPDOWN
-                  DropdownButtonFormField<String>(
-                    value: selectedYear,
-                    decoration: const InputDecoration(labelText: "Year"),
-                    items: years.map((y) {
-                      return DropdownMenuItem(
-                        value: y,
-                        child: Text("Year $y"),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      setStateDialog(() {
-                        selectedYear = value!;
-                      });
-                    },
-                  ),
 
-                  const SizedBox(height: 10),
-
-                  /// SECTION DROPDOWN
-                  DropdownButtonFormField<String>(
-                    value: selectedSection,
-                    decoration: const InputDecoration(labelText: "Section"),
-                    items: sections.map((s) {
-                      return DropdownMenuItem(
-                        value: s,
-                        child: Text("Section $s"),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      setStateDialog(() {
-                        selectedSection = value!;
-                      });
-                    },
-                  ),
                   const SizedBox(height: 15),
 
                     Align(
@@ -502,12 +399,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: selectedSubjects.map((subject) {
-                        return Text(
-                          "$subject - ${(deptController.text.isEmpty ? "Dept" : deptController.text)} $selectedYear$selectedSection",
+                      children: dialogSelectedSubjects.map((subject) {
+                       return Text(
+                          "• $subject",
                           style: const TextStyle(color: Colors.grey),
                         );
-                      }).toList(),
+                       }).toList(),
                     ),
                 ],
               ),
@@ -529,7 +426,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   if (nameController.text.isEmpty ||
                       email.isEmpty ||
                       deptController.text.isEmpty ||
-                      selectedSubjects.isEmpty) {
+                      dialogSelectedSubjects.isEmpty) {
 
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
@@ -539,8 +436,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     return;
                   }
                   // 🔥 Remove duplicates (safety)
-                  selectedSubjects = selectedSubjects.toSet().toList();
-
+                  List<String> subjectsList = dialogSelectedSubjects
+                    .map((s) => s.toUpperCase())
+                    .toSet()
+                    .toList();
                   /// CHECK IF EXISTS
                   final doc = await FirebaseFirestore.instance
                       .collection("teachers")
@@ -556,16 +455,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     return;
                   }
 
-                  /// 🔥 CREATE ASSIGNMENTS ARRAY
-                  List<Map<String, dynamic>> assignments =
-                      selectedSubjects.map((subject) {
-                    return {
-                      "subject": subject,
-                      //"department": deptController.text.trim(),
-                      "year": int.parse(selectedYear),
-                      "section": selectedSection,
-                    };
-                  }).toList();
+                 
 
                   /// 🔥 SAVE TO FIRESTORE
                   await FirebaseFirestore.instance
@@ -576,7 +466,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     "name": nameController.text.trim(),
                     "email": email,
                     "department": deptController.text.trim(),
-                    "assignments": assignments,
+                    "subjects": subjectsList,
+                    //"assignments": assignments,
                     "role": "faculty",
                     "createdAt": Timestamp.now(),
 
@@ -659,14 +550,14 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
             const SizedBox(height: 30),
 
-            recentSessions(),
+            
             const SizedBox(height: 20),
 
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
               icon: const Icon(Icons.people),
-              label: const Text("View Students"),
+              label: const Text("Manage Students"),
               style: ElevatedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 14),
             ),

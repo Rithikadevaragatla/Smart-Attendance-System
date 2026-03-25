@@ -6,9 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ExcelService {
 
-  /* ---------------------------------------------------- */
-  /* SESSION REPORT                                       */
-  /* ---------------------------------------------------- */
+  /* ---------------- SESSION REPORT ---------------- */
 
   static Future<void> generateSessionReport({
     required String sessionId,
@@ -19,15 +17,15 @@ class ExcelService {
     final sessionDoc =
         await firestore.collection('sessions').doc(sessionId).get();
 
-    if (!sessionDoc.exists) {
-      throw Exception("Session not found");
-    }
-
     final sessionData = sessionDoc.data()!;
 
     final subject = sessionData['subject'];
     final faculty = sessionData['facultyName'];
     final DateTime date = (sessionData['date'] as Timestamp).toDate();
+
+    final department = sessionData['department'] ?? "";
+    final year = sessionData['year'] ?? 0;
+    final section = sessionData['section'] ?? "";
 
     final attendanceSnapshot = await firestore
         .collection('sessions')
@@ -37,8 +35,12 @@ class ExcelService {
 
     final attendanceDocs = attendanceSnapshot.docs;
 
-    final studentsSnapshot =
-        await firestore.collection('students').get();
+    final studentsSnapshot = await firestore
+        .collection('students')
+        .where('department', isEqualTo: department)
+        .where('year', isEqualTo: year)
+        .where('section', isEqualTo: section)
+        .get();
 
     final totalStudents = studentsSnapshot.docs.length;
     final present = attendanceDocs.length;
@@ -53,12 +55,13 @@ class ExcelService {
       totalStudents: totalStudents,
       present: present,
       absent: absent,
+      department: department,
+      year: year.toString(),
+      section: section,
     );
   }
 
-  /* ---------------------------------------------------- */
-  /* ABSENTEES REPORT                                     */
-  /* ---------------------------------------------------- */
+  /* ---------------- ABSENTEES REPORT ---------------- */
 
   static Future<void> generateAbsenteesReport({
     required String sessionId,
@@ -69,15 +72,15 @@ class ExcelService {
     final sessionDoc =
         await firestore.collection('sessions').doc(sessionId).get();
 
-    if (!sessionDoc.exists) {
-      throw Exception("Session not found");
-    }
-
     final sessionData = sessionDoc.data()!;
 
     final subject = sessionData['subject'];
     final faculty = sessionData['facultyName'];
     final DateTime date = (sessionData['date'] as Timestamp).toDate();
+
+    final department = sessionData['department'] ?? "";
+    final year = sessionData['year'] ?? 0;
+    final section = sessionData['section'] ?? "";
 
     final attendanceSnapshot = await firestore
         .collection('sessions')
@@ -89,15 +92,16 @@ class ExcelService {
         .map((doc) => doc['rollNo'])
         .toSet();
 
-    final studentsSnapshot =
-        await firestore.collection('students').get();
+    final studentsSnapshot = await firestore
+        .collection('students')
+        .where('department', isEqualTo: department)
+        .where('year', isEqualTo: year)
+        .where('section', isEqualTo: section)
+        .get();
 
     final absentees = studentsSnapshot.docs.where((student) {
-
       final data = student.data();
-
       return !presentRollNos.contains(data['rollNo']);
-
     }).toList();
 
     final totalStudents = studentsSnapshot.docs.length;
@@ -114,15 +118,19 @@ class ExcelService {
       present: present,
       absent: absent,
       isAbsentees: true,
+      department: department,
+      year: year.toString(),
+      section: section,
     );
   }
 
-  /* ---------------------------------------------------- */
-  /* DAY REPORT                                           */
-  /* ---------------------------------------------------- */
+  /* ---------------- DAY REPORT (FIXED) ---------------- */
 
   static Future<void> generateDayReport({
     required DateTime date,
+    required String department,
+    required int year,
+    required String section,
   }) async {
 
     final firestore = FirebaseFirestore.instance;
@@ -134,12 +142,14 @@ class ExcelService {
         .collection('sessions')
         .where('date', isGreaterThanOrEqualTo: start)
         .where('date', isLessThanOrEqualTo: end)
+        .where('department', isEqualTo: department)
+        .where('year', isEqualTo: year)
+        .where('section', isEqualTo: section)
         .get();
 
     List<QueryDocumentSnapshot> attendanceDocs = [];
 
     for (var session in sessionsSnapshot.docs) {
-
       final snapshot = await firestore
           .collection('sessions')
           .doc(session.id)
@@ -149,8 +159,12 @@ class ExcelService {
       attendanceDocs.addAll(snapshot.docs);
     }
 
-    final studentsSnapshot =
-        await firestore.collection('students').get();
+    final studentsSnapshot = await firestore
+        .collection('students')
+        .where('department', isEqualTo: department)
+        .where('year', isEqualTo: year)
+        .where('section', isEqualTo: section)
+        .get();
 
     final totalStudents = studentsSnapshot.docs.length;
     final present = attendanceDocs.length;
@@ -158,22 +172,26 @@ class ExcelService {
 
     await _buildExcel(
       fileName: "Day_Report",
-      subject: "All Subjects",
+      subject: "Multiple Subjects",
       faculty: "Multiple Faculty",
       date: date,
       attendanceDocs: attendanceDocs,
       totalStudents: totalStudents,
       present: present,
       absent: absent,
+      department: department,
+      year: year.toString(),
+      section: section,
     );
   }
 
-  /* ---------------------------------------------------- */
-  /* MONTH REPORT                                         */
-  /* ---------------------------------------------------- */
+  /* ---------------- MONTH REPORT (FIXED) ---------------- */
 
   static Future<void> generateMonthReport({
     required DateTime month,
+    required String department,
+    required int year,
+    required String section,
   }) async {
 
     final firestore = FirebaseFirestore.instance;
@@ -185,12 +203,14 @@ class ExcelService {
         .collection('sessions')
         .where('date', isGreaterThanOrEqualTo: start)
         .where('date', isLessThanOrEqualTo: end)
+        .where('department', isEqualTo: department)
+        .where('year', isEqualTo: year)
+        .where('section', isEqualTo: section)
         .get();
 
     List<QueryDocumentSnapshot> attendanceDocs = [];
 
     for (var session in sessionsSnapshot.docs) {
-
       final snapshot = await firestore
           .collection('sessions')
           .doc(session.id)
@@ -200,8 +220,12 @@ class ExcelService {
       attendanceDocs.addAll(snapshot.docs);
     }
 
-    final studentsSnapshot =
-        await firestore.collection('students').get();
+    final studentsSnapshot = await firestore
+        .collection('students')
+        .where('department', isEqualTo: department)
+        .where('year', isEqualTo: year)
+        .where('section', isEqualTo: section)
+        .get();
 
     final totalStudents = studentsSnapshot.docs.length;
     final present = attendanceDocs.length;
@@ -209,22 +233,22 @@ class ExcelService {
 
     await _buildExcel(
       fileName: "Month_Report",
-      subject: "All Subjects",
+      subject: "Multiple Subjects",
       faculty: "Multiple Faculty",
       date: month,
       attendanceDocs: attendanceDocs,
       totalStudents: totalStudents,
       present: present,
       absent: absent,
+      department: department,
+      year: year.toString(),
+      section: section,
     );
   }
 
-  /* ---------------------------------------------------- */
-  /* COMMON EXCEL BUILDER                                 */
-  /* ---------------------------------------------------- */
+  /* ---------------- COMMON EXCEL BUILDER ---------------- */
 
   static Future<void> _buildExcel({
-
     required String fileName,
     required String subject,
     required String faculty,
@@ -233,37 +257,35 @@ class ExcelService {
     required int totalStudents,
     required int present,
     required int absent,
+    required String department,
+    required String year,
+    required String section,
     bool isAbsentees = false,
-
   }) async {
 
     final excel = Excel.createExcel();
     final sheet = excel['Attendance'];
 
-    /* ---------- TITLE ---------- */
-
     sheet.appendRow([
       "GEETHANJALI COLLEGE OF ENGINEERING AND TECHNOLOGY"
     ]);
 
-    sheet.merge(
-        CellIndex.indexByString("A1"),
-        CellIndex.indexByString("C1"));
+    sheet.merge(CellIndex.indexByString("A1"), CellIndex.indexByString("C1"));
 
     sheet.appendRow([
       isAbsentees ? "Absentees Report" : "Attendance Report"
     ]);
 
-    sheet.merge(
-        CellIndex.indexByString("A2"),
-        CellIndex.indexByString("C2"));
+    sheet.merge(CellIndex.indexByString("A2"), CellIndex.indexByString("C2"));
 
     sheet.appendRow([]);
 
-    /* ---------- DETAILS ---------- */
-
     sheet.appendRow(["Faculty", faculty]);
     sheet.appendRow(["Subject", subject]);
+    sheet.appendRow(["Department", department]);
+    sheet.appendRow(["Year", year]);
+    sheet.appendRow(["Section", section]);
+
     sheet.appendRow([
       "Date",
       "${date.day}-${date.month}-${date.year}"
@@ -271,23 +293,17 @@ class ExcelService {
 
     sheet.appendRow([]);
 
-    /* ---------- SUMMARY ---------- */
-
     sheet.appendRow(["Total Students", totalStudents]);
     sheet.appendRow(["Present", present]);
     sheet.appendRow(["Absent", absent]);
 
     sheet.appendRow([]);
 
-    /* ---------- HEADER ---------- */
-
     if (isAbsentees) {
       sheet.appendRow(["Roll No", "Student Name"]);
     } else {
       sheet.appendRow(["Roll No", "Student Name", "Time"]);
     }
-
-    /* ---------- DATA ---------- */
 
     for (var doc in attendanceDocs) {
 
@@ -316,13 +332,9 @@ class ExcelService {
       }
     }
 
-    /* ---------- COLUMN WIDTH ---------- */
-
     sheet.setColWidth(0, 18);
     sheet.setColWidth(1, 30);
     sheet.setColWidth(2, 18);
-
-    /* ---------- SAVE FILE ---------- */
 
     final directory = await getApplicationDocumentsDirectory();
 
@@ -332,7 +344,6 @@ class ExcelService {
     final fileBytes = excel.save();
 
     if (fileBytes != null) {
-
       final file = File(filePath)
         ..createSync(recursive: true)
         ..writeAsBytesSync(fileBytes);

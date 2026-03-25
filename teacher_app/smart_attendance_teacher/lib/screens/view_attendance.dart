@@ -12,40 +12,39 @@ class ViewAttendancePage extends StatefulWidget {
 }
 
 class _ViewAttendancePageState extends State<ViewAttendancePage> {
-
   bool isDownloading = false;
 
   DateTime? selectedDate;
   DateTime? selectedMonth;
 
+  /* ---------------- SESSION DATA ---------------- */
+
+  String department = "";
+  int year = 0;
+  String section = "";
+
   /* ---------------- SESSION REPORT ---------------- */
 
   Future<void> downloadSessionReport() async {
-
     setState(() => isDownloading = true);
 
-    await ExcelService.generateSessionReport(
-      sessionId: widget.sessionId,
-    );
+    await ExcelService.generateSessionReport(sessionId: widget.sessionId);
 
     if (!mounted) return;
 
     setState(() => isDownloading = false);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Session report downloaded")),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text("Session report downloaded")));
   }
 
   /* ---------------- ABSENTEES REPORT ---------------- */
 
   Future<void> downloadAbsenteesReport() async {
-
     setState(() => isDownloading = true);
 
-    await ExcelService.generateAbsenteesReport(
-      sessionId: widget.sessionId,
-    );
+    await ExcelService.generateAbsenteesReport(sessionId: widget.sessionId);
 
     if (!mounted) return;
 
@@ -59,7 +58,6 @@ class _ViewAttendancePageState extends State<ViewAttendancePage> {
   /* ---------------- DAY REPORT ---------------- */
 
   Future<void> downloadDayReport() async {
-
     if (selectedDate == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Please select a date first")),
@@ -71,21 +69,23 @@ class _ViewAttendancePageState extends State<ViewAttendancePage> {
 
     await ExcelService.generateDayReport(
       date: selectedDate!,
+      department: department,
+      year: year,
+      section: section,
     );
 
     if (!mounted) return;
 
     setState(() => isDownloading = false);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Day report downloaded")),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text("Day report downloaded")));
   }
 
   /* ---------------- MONTH REPORT ---------------- */
 
   Future<void> downloadMonthReport() async {
-
     if (selectedMonth == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Please select a month first")),
@@ -97,21 +97,23 @@ class _ViewAttendancePageState extends State<ViewAttendancePage> {
 
     await ExcelService.generateMonthReport(
       month: selectedMonth!,
+      department: department,
+      year: year,
+      section: section,
     );
 
     if (!mounted) return;
 
     setState(() => isDownloading = false);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Month report downloaded")),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text("Month report downloaded")));
   }
 
   /* ---------------- PICK DATE ---------------- */
 
   Future<void> pickDate() async {
-
     final date = await showDatePicker(
       context: context,
       initialDate: DateTime.now(),
@@ -129,7 +131,6 @@ class _ViewAttendancePageState extends State<ViewAttendancePage> {
   /* ---------------- PICK MONTH ---------------- */
 
   Future<void> pickMonth() async {
-
     final date = await showDatePicker(
       context: context,
       initialDate: DateTime.now(),
@@ -153,41 +154,27 @@ class _ViewAttendancePageState extends State<ViewAttendancePage> {
     required Color color,
     required VoidCallback onTap,
   }) {
-
     return InkWell(
-
       borderRadius: BorderRadius.circular(12),
-
       onTap: isDownloading ? null : onTap,
-
       child: Container(
-
         decoration: BoxDecoration(
           color: color.withOpacity(0.12),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: color.withOpacity(0.4)),
         ),
-
         padding: const EdgeInsets.all(12),
-
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-
             Icon(icon, color: color),
-
             const SizedBox(width: 8),
-
             Flexible(
               child: Text(
                 label,
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  color: color,
-                ),
+                style: TextStyle(fontWeight: FontWeight.w600, color: color),
               ),
             ),
-
           ],
         ),
       ),
@@ -196,18 +183,12 @@ class _ViewAttendancePageState extends State<ViewAttendancePage> {
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
-
-      appBar: AppBar(
-        title: const Text("Attendance Records"),
-      ),
+      appBar: AppBar(title: const Text("Attendance Records")),
 
       body: Column(
         children: [
-
           /* ---------------- REPORT DASHBOARD ---------------- */
-
           Card(
             margin: const EdgeInsets.all(16),
             elevation: 4,
@@ -220,29 +201,22 @@ class _ViewAttendancePageState extends State<ViewAttendancePage> {
 
               child: Column(
                 children: [
-
                   const Text(
                     "Download Reports",
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
 
                   const SizedBox(height: 16),
 
                   GridView.count(
-
                     crossAxisCount: 2,
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
-
                     crossAxisSpacing: 12,
                     mainAxisSpacing: 12,
                     childAspectRatio: 2.4,
 
                     children: [
-
                       reportButton(
                         icon: Icons.picture_as_pdf,
                         label: "Session Report",
@@ -292,28 +266,28 @@ class _ViewAttendancePageState extends State<ViewAttendancePage> {
           ),
 
           /* ---------------- SESSION DETAILS ---------------- */
-
           FutureBuilder<DocumentSnapshot>(
-
             future: FirebaseFirestore.instance
                 .collection('sessions')
                 .doc(widget.sessionId)
                 .get(),
 
             builder: (context, snapshot) {
-
               if (!snapshot.hasData) {
                 return const SizedBox();
               }
 
-              final data =
-                  snapshot.data!.data() as Map<String, dynamic>;
+              final data = snapshot.data!.data() as Map<String, dynamic>;
 
               final subject = data['subject'] ?? "--";
               final faculty = data['facultyName'] ?? "--";
 
-              return Card(
+              // ✅ NEW FIELDS
+              department = data['department'] ?? "";
+              year = data['year'] ?? 0;
+              section = data['section'] ?? "";
 
+              return Card(
                 margin: const EdgeInsets.symmetric(horizontal: 16),
 
                 elevation: 3,
@@ -323,7 +297,6 @@ class _ViewAttendancePageState extends State<ViewAttendancePage> {
 
                   child: Column(
                     children: [
-
                       const Text(
                         "Session Details",
                         style: TextStyle(
@@ -337,10 +310,8 @@ class _ViewAttendancePageState extends State<ViewAttendancePage> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-
                           const Icon(Icons.book, size: 18),
                           const SizedBox(width: 6),
-
                           Text("Subject : $subject"),
                         ],
                       ),
@@ -350,11 +321,43 @@ class _ViewAttendancePageState extends State<ViewAttendancePage> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-
                           const Icon(Icons.person, size: 18),
                           const SizedBox(width: 6),
-
                           Text("Faculty : $faculty"),
+                        ],
+                      ),
+
+                      const SizedBox(height: 6),
+
+                      // ✅ NEW UI
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.school, size: 18),
+                          const SizedBox(width: 6),
+                          Text("Dept : $department"),
+                        ],
+                      ),
+
+                      const SizedBox(height: 6),
+
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.calendar_view_day, size: 18),
+                          const SizedBox(width: 6),
+                          Text("Year : $year"),
+                        ],
+                      ),
+
+                      const SizedBox(height: 6),
+
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.group, size: 18),
+                          const SizedBox(width: 6),
+                          Text("Section : $section"),
                         ],
                       ),
                     ],
@@ -367,11 +370,8 @@ class _ViewAttendancePageState extends State<ViewAttendancePage> {
           const SizedBox(height: 10),
 
           /* ---------------- ATTENDANCE LIST ---------------- */
-
           Expanded(
-
             child: StreamBuilder<QuerySnapshot>(
-
               stream: FirebaseFirestore.instance
                   .collection('sessions')
                   .doc(widget.sessionId)
@@ -380,74 +380,47 @@ class _ViewAttendancePageState extends State<ViewAttendancePage> {
                   .snapshots(),
 
               builder: (context, snapshot) {
-
-                if (snapshot.connectionState ==
-                    ConnectionState.waiting) {
-
-                  return const Center(
-                    child: CircularProgressIndicator(),
-                  );
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
                 }
 
                 final docs = snapshot.data?.docs ?? [];
 
                 if (docs.isEmpty) {
-
                   return const Center(
                     child: Text(
                       "No attendance records yet",
-                      style: TextStyle(
-                        fontWeight: FontWeight.w500,
-                      ),
+                      style: TextStyle(fontWeight: FontWeight.w500),
                     ),
                   );
                 }
 
                 return ListView.builder(
-
                   padding: const EdgeInsets.symmetric(horizontal: 12),
-
                   itemCount: docs.length,
 
                   itemBuilder: (context, index) {
-
-                    final data =
-                        docs[index].data() as Map<String, dynamic>;
+                    final data = docs[index].data() as Map<String, dynamic>;
 
                     final Timestamp? ts = data['timestamp'];
 
                     final timeString = ts != null
-                        ? ts
-                            .toDate()
-                            .toLocal()
-                            .toString()
-                            .substring(11, 19)
+                        ? ts.toDate().toLocal().toString().substring(11, 19)
                         : "--";
 
                     return Card(
-
                       elevation: 2,
-
-                      margin: const EdgeInsets.symmetric(
-                        vertical: 6,
-                      ),
+                      margin: const EdgeInsets.symmetric(vertical: 6),
 
                       child: ListTile(
-
-                        leading: const CircleAvatar(
-                          child: Icon(Icons.person),
-                        ),
+                        leading: const CircleAvatar(child: Icon(Icons.person)),
 
                         title: Text(
                           data['name'] ?? "Unknown",
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                          ),
+                          style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
 
-                        subtitle: Text(
-                          "Roll No : ${data['rollNo'] ?? "--"}",
-                        ),
+                        subtitle: Text("Roll No : ${data['rollNo'] ?? "--"}"),
 
                         trailing: Text(
                           timeString,
@@ -462,7 +435,7 @@ class _ViewAttendancePageState extends State<ViewAttendancePage> {
                 );
               },
             ),
-          )
+          ),
         ],
       ),
     );

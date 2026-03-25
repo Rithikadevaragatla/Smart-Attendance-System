@@ -15,16 +15,20 @@ class TeacherDashboard extends StatefulWidget {
 }
 
 class _TeacherDashboardState extends State<TeacherDashboard> {
-
   String? _activeSessionId;
   bool _isLoading = false;
 
   //String? selectedSubject;
   String facultyName = "Faculty";
 
-  //List<String> subjects = [];
-  List<dynamic> assignments = [];
-  Map<String, dynamic>? selectedAssignment;
+  List<String> subjects = [];
+  String? selectedSubject;
+
+  String selectedYear = "3";
+  String selectedSection = "A";
+
+  List<String> years = ["1", "2", "3", "4"];
+  List<String> sections = ["A", "B", "C", "D", "E", "F", "G"];
   String? department;
 
   Timer? _timer;
@@ -46,7 +50,6 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
   /* LOAD TEACHER DATA */
 
   Future<void> _loadTeacherData() async {
-
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
@@ -58,66 +61,28 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
     if (!mounted) return;
 
     if (doc.exists) {
-
       final data = doc.data()!;
-      assignments = data['assignments'] ?? [];
+      subjects = List<String>.from(data['subjects'] ?? []);
 
       setState(() {
-
         facultyName = data['name'] ?? "Faculty";
         department = data['department'];
 
-        if (assignments.isNotEmpty) {
-          selectedAssignment = assignments.first;
+        if (subjects.isNotEmpty) {
+          selectedSubject = subjects.first;
         }
-
       });
     }
   }
 
   /* SUBJECT DROPDOWN */
 
-  Widget assignmentDropdown() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<Map<String, dynamic>>(
-          value: selectedAssignment,
-          isExpanded: true,
-          hint: const Text("Select Class"),
-          items: assignments
-              .map<DropdownMenuItem<Map<String, dynamic>>>((a) {
-            return DropdownMenuItem<Map<String, dynamic>>(
-              value: a,
-              child: Text(
-                "${a['subject']} - ${department ?? ""} ${a['year']}${a['section']}"
-              ),
-            );
-        }).toList(),
-        onChanged: (Map<String, dynamic>? value) {
-          setState(() {
-            selectedAssignment = value;
-          });
-        },
-      ),
-    ),
-  );
-}
-
   /* TIMER */
 
   void startTimer() {
-
     _timer?.cancel();
 
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-
       if (startTimestamp == null) return;
 
       final start = startTimestamp!.toDate();
@@ -126,12 +91,10 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
       setState(() {
         sessionDuration = now.difference(start);
       });
-
     });
   }
 
   String formatDuration(Duration d) {
-
     String two(int n) => n.toString().padLeft(2, '0');
 
     final h = two(d.inHours);
@@ -144,36 +107,33 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
   /* START SESSION */
 
   Future<void> _startSession() async {
-
-    if (_isLoading || selectedAssignment == null) return;
+    if (_isLoading || selectedSubject == null) return;
 
     setState(() => _isLoading = true);
 
     try {
-
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return;
 
       final now = Timestamp.now();
 
-      final sessionRef =
-      await FirebaseFirestore.instance.collection('sessions').add({
-
-        'teacherId': user.uid,
-        'teacherEmail': user.email,
-        'facultyName': facultyName,
-        'subject': selectedAssignment!['subject'],
-        'department': department,
-        'year': selectedAssignment!['year'],
-        'section': selectedAssignment!['section'],
-        'date': now,
-        'startTime': now,
-        'isActive': true,
-
-      });
+      final sessionRef = await FirebaseFirestore.instance
+          .collection('sessions')
+          .add({
+            'teacherId': user.uid,
+            'teacherEmail': user.email,
+            'facultyName': facultyName,
+            'subject': selectedSubject,
+            'department': department ?? "",
+            'year': int.parse(selectedYear),
+            'section': selectedSection,
+            'date': now,
+            'startTime': now,
+            'isActive': true,
+          });
 
       String payload =
-          "${sessionRef.id}|${selectedAssignment!['subject']}|$department|${selectedAssignment!['year']}|${selectedAssignment!['section']}";
+          "${sessionRef.id}|$selectedSubject|${department ?? ""}|$selectedYear|$selectedSection";
       await BleService.startAdvertising(payload);
 
       startTimestamp = now;
@@ -184,15 +144,11 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
       setState(() {
         _activeSessionId = sessionRef.id;
       });
-
     } catch (e) {
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Failed to start session")),
-      );
-
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Failed to start session")));
     } finally {
-
       if (!mounted) return;
       setState(() => _isLoading = false);
     }
@@ -201,11 +157,9 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
   /* END SESSION */
 
   Future<void> _endSession() async {
-
     if (_activeSessionId == null) return;
 
     try {
-
       await FirebaseFirestore.instance
           .collection('sessions')
           .doc(_activeSessionId)
@@ -221,19 +175,16 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
         _activeSessionId = null;
         sessionDuration = Duration.zero;
       });
-
     } catch (e) {
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Failed to end session")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Failed to end session")));
     }
   }
 
   /* LOGOUT */
 
   Future<void> _logout() async {
-
     await FirebaseAuth.instance.signOut();
 
     if (!mounted) return;
@@ -241,14 +192,13 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (_) => const TeacherLoginPage()),
-          (route) => false,
+      (route) => false,
     );
   }
 
   /* PROFILE MENU */
 
   void showProfileMenu() {
-
     final user = FirebaseAuth.instance.currentUser;
 
     showModalBottomSheet(
@@ -257,14 +207,12 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
       ),
       builder: (context) {
-
         return Padding(
           padding: const EdgeInsets.all(20),
 
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-
               const CircleAvatar(
                 radius: 30,
                 backgroundColor: Color(0xFFE8F5E9),
@@ -276,8 +224,9 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
               Text(
                 facultyName,
                 style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold),
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
 
               Text(
@@ -306,11 +255,9 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
   /* LIVE ATTENDANCE + PROGRESS */
 
   Widget attendanceWidget() {
-
     if (_activeSessionId == null) return const SizedBox();
 
     return StreamBuilder<QuerySnapshot>(
-
       stream: FirebaseFirestore.instance
           .collection('sessions')
           .doc(_activeSessionId)
@@ -318,30 +265,25 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
           .snapshots(),
 
       builder: (context, snapshot) {
-
         int present = snapshot.data?.docs.length ?? 0;
 
         return FutureBuilder<QuerySnapshot>(
-
           future: FirebaseFirestore.instance
-            .collection('students')
-            .where('department', isEqualTo: department)
-            .where('year', isEqualTo: selectedAssignment!['year'])
-            .where('section', isEqualTo: selectedAssignment!['section'])
-            .get(),
+              .collection('students')
+              .where('department', isEqualTo: department ?? "")
+              .where('year', isEqualTo: int.parse(selectedYear))
+              .where('section', isEqualTo: selectedSection)
+              .get(),
 
           builder: (context, studentSnap) {
-
             int total = studentSnap.data?.docs.length ?? 0;
 
             double progress = total == 0 ? 0 : present / total;
 
             return Column(
-
               crossAxisAlignment: CrossAxisAlignment.start,
 
               children: [
-
                 Text(
                   "Class Attendance : $present / $total",
                   style: const TextStyle(
@@ -358,11 +300,11 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                     value: progress,
                     minHeight: 8,
                     backgroundColor: Colors.white24,
-                    valueColor:
-                    const AlwaysStoppedAnimation<Color>(Colors.white),
+                    valueColor: const AlwaysStoppedAnimation<Color>(
+                      Colors.white,
+                    ),
                   ),
                 ),
-
               ],
             );
           },
@@ -374,16 +316,13 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
   /* SESSION CARD */
 
   Widget sessionCard() {
-
     return Container(
-
       width: double.infinity,
       constraints: const BoxConstraints(minHeight: 140),
 
       padding: const EdgeInsets.all(22),
 
       decoration: BoxDecoration(
-
         borderRadius: BorderRadius.circular(20),
 
         gradient: LinearGradient(
@@ -393,21 +332,15 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
         ),
 
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(.15),
-            blurRadius: 10,
-          )
+          BoxShadow(color: Colors.black.withOpacity(.15), blurRadius: 10),
         ],
       ),
 
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-
           Text(
-            _activeSessionId == null
-                ? "No Active Session"
-                : "Session Running",
+            _activeSessionId == null ? "No Active Session" : "Session Running",
             style: const TextStyle(
               color: Colors.white,
               fontSize: 18,
@@ -416,13 +349,12 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
           ),
 
           if (_activeSessionId != null) ...[
-
             const SizedBox(height: 10),
 
             Text(
-              selectedAssignment == null
+              selectedSubject == null
                   ? "Class : -"
-                  : "Class : ${selectedAssignment!['subject']} - ${department ?? ""} ${selectedAssignment!['year']}${selectedAssignment!['section']}",
+                  : "Class : $selectedSubject - ${department ?? ""} $selectedYear$selectedSection",
               style: const TextStyle(color: Colors.white70),
             ),
 
@@ -436,9 +368,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
             const SizedBox(height: 10),
 
             attendanceWidget(),
-
-          ]
-
+          ],
         ],
       ),
     );
@@ -446,47 +376,30 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
 
   /* STAT CARD */
 
-  Widget statCard(
-      IconData icon,
-      String title,
-      String value,
-      Color color) {
-
+  Widget statCard(IconData icon, String title, String value, Color color) {
     return Container(
-
       padding: const EdgeInsets.all(18),
 
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(.05),
-            blurRadius: 10,
-          )
+          BoxShadow(color: Colors.black.withOpacity(.05), blurRadius: 10),
         ],
       ),
 
       child: Column(
-
         children: [
-
           Icon(icon, color: color, size: 26),
 
           const SizedBox(height: 8),
 
           Text(
             value,
-            style: const TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold),
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
           ),
 
-          Text(
-            title,
-            style: const TextStyle(color: Colors.grey),
-          )
-
+          Text(title, style: const TextStyle(color: Colors.grey)),
         ],
       ),
     );
@@ -494,62 +407,58 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
 
   /* STUDENT COUNTER */
 
-Widget studentCounter() {
+  Widget studentCounter() {
+    if (selectedSubject == null) {
+      return statCard(Icons.people, "Students", "0", Colors.blue);
+    }
 
-  if (selectedAssignment == null) {
-    return statCard(Icons.people, "Students", "0", Colors.blue);
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('students')
+          .where('department', isEqualTo: department ?? "")
+          .where('year', isEqualTo: int.parse(selectedYear))
+          .where('section', isEqualTo: selectedSection)
+          .snapshots(),
+      builder: (context, snapshot) {
+        int totalStudents = snapshot.data?.docs.length ?? 0;
+
+        return statCard(
+          Icons.people,
+          "Students",
+          totalStudents.toString(),
+          Colors.blue,
+        );
+      },
+    );
   }
-
-  return StreamBuilder<QuerySnapshot>(
-
-    stream: FirebaseFirestore.instance
-        .collection('students')
-        .where('department', isEqualTo: department)
-        .where('year', isEqualTo: selectedAssignment!['year'])
-        .where('section', isEqualTo: selectedAssignment!['section'])
-        .snapshots(),
-    builder: (context, snapshot) {
-
-      int totalStudents = snapshot.data?.docs.length ?? 0;
-
-      return statCard(
-        Icons.people,
-        "Students",
-        totalStudents.toString(),
-        Colors.blue,
-      );
-    },
-  );
-}
 
   /* SESSION COUNTER */
 
   Widget sessionCounter() {
-
     final user = FirebaseAuth.instance.currentUser;
 
     return StreamBuilder<QuerySnapshot>(
-
       stream: FirebaseFirestore.instance
           .collection('sessions')
           .where('teacherEmail', isEqualTo: user?.email)
           .snapshots(),
 
       builder: (context, snapshot) {
-
         int totalSessions = snapshot.data?.docs.length ?? 0;
 
         return statCard(
-            Icons.event, "Sessions", totalSessions.toString(), Colors.green);
+          Icons.event,
+          "Sessions",
+          totalSessions.toString(),
+          Colors.green,
+        );
       },
     );
   }
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
-
       backgroundColor: const Color(0xFFF6F7FB),
 
       appBar: AppBar(
@@ -567,58 +476,122 @@ Widget studentCounter() {
               child: Icon(Icons.person, color: Colors.green),
             ),
             onPressed: showProfileMenu,
-          )
+          ),
         ],
       ),
 
       body: SingleChildScrollView(
-
         padding: const EdgeInsets.all(20),
 
         child: Column(
-
           crossAxisAlignment: CrossAxisAlignment.start,
 
           children: [
-
             Text(
               "Welcome back 👋",
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey[700],
-              ),
+              style: TextStyle(fontSize: 16, color: Colors.grey[700]),
             ),
 
             Text(
               facultyName,
-              style: const TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
             ),
 
             const SizedBox(height: 20),
 
-            const Text(
-              "Select Class",
-              style: TextStyle(color: Colors.grey),
-            ),
+            const Text("Select Class", style: TextStyle(color: Colors.grey)),
 
             const SizedBox(height: 8),
 
-            assignmentDropdown(),
+            /// SUBJECT DROPDOWN
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey.shade300),
+                borderRadius: BorderRadius.circular(10),
+                color: Colors.white,
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: selectedSubject,
+                  isExpanded: true,
+                  hint: const Text("Select Subject"),
+                  items: subjects.map((s) {
+                    return DropdownMenuItem(value: s, child: Text(s));
+                  }).toList(),
+                  onChanged: (value) {
+                    setState(() {
+                      selectedSubject = value;
+                    });
+                  },
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            /// YEAR DROPDOWN
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey.shade300),
+                borderRadius: BorderRadius.circular(10),
+                color: Colors.white,
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: selectedYear,
+                  isExpanded: true,
+                  items: years.map((y) {
+                    return DropdownMenuItem(value: y, child: Text("Year $y"));
+                  }).toList(),
+                  onChanged: (value) {
+                    setState(() {
+                      selectedYear = value!;
+                    });
+                  },
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            /// SECTION DROPDOWN
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey.shade300),
+                borderRadius: BorderRadius.circular(10),
+                color: Colors.white,
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: selectedSection,
+                  isExpanded: true,
+                  items: sections.map((s) {
+                    return DropdownMenuItem(
+                      value: s,
+                      child: Text("Section $s"),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    setState(() {
+                      selectedSection = value!;
+                    });
+                  },
+                ),
+              ),
+            ),
 
             const SizedBox(height: 20),
 
             Row(
               children: [
-
                 Expanded(child: sessionCounter()),
 
                 const SizedBox(width: 12),
 
                 Expanded(child: studentCounter()),
-
               ],
             ),
 
@@ -629,16 +602,13 @@ Widget studentCounter() {
             const SizedBox(height: 30),
 
             if (_activeSessionId == null)
-
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green.shade600,
                     foregroundColor: Colors.white,
-                    padding:
-                    const EdgeInsets.symmetric(vertical: 16),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -647,57 +617,49 @@ Widget studentCounter() {
                   icon: const Icon(Icons.play_arrow),
 
                   label: _isLoading
-                      ? const CircularProgressIndicator(
-                      color: Colors.white)
+                      ? const CircularProgressIndicator(color: Colors.white)
                       : const Text(
-                    "Start Attendance Session",
-                    style: TextStyle(fontSize: 16),
-                  ),
+                          "Start Attendance Session",
+                          style: TextStyle(fontSize: 16),
+                        ),
 
-                  onPressed: _isLoading || assignments.isEmpty || selectedAssignment == null
+                  onPressed:
+                      _isLoading || subjects.isEmpty || selectedSubject == null
                       ? null
                       : _startSession,
                 ),
               )
-
             else
-
               GridView.count(
                 crossAxisCount: 2,
                 shrinkWrap: true,
-                physics:
-                const NeverScrollableScrollPhysics(),
+                physics: const NeverScrollableScrollPhysics(),
                 crossAxisSpacing: 14,
                 mainAxisSpacing: 14,
                 children: [
+                  actionTile(
+                    Icons.stop_circle,
+                    "End Session",
+                    Colors.red,
+                    _endSession,
+                  ),
 
                   actionTile(
-                      Icons.stop_circle,
-                      "End Session",
-                      Colors.red,
-                      _endSession),
-
-                  actionTile(
-                      Icons.list_alt,
-                      "View Attendance",
-                      Colors.blue,
-                          () {
-
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                ViewAttendancePage(
-                                  sessionId:
-                                  _activeSessionId!,
-                                ),
-                          ),
-                        );
-                      }),
-
+                    Icons.list_alt,
+                    "View Attendance",
+                    Colors.blue,
+                    () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              ViewAttendancePage(sessionId: _activeSessionId!),
+                        ),
+                      );
+                    },
+                  ),
                 ],
               ),
-
           ],
         ),
       ),
@@ -705,34 +667,28 @@ Widget studentCounter() {
   }
 
   Widget actionTile(
-      IconData icon,
-      String title,
-      Color color,
-      VoidCallback onTap) {
-
+    IconData icon,
+    String title,
+    Color color,
+    VoidCallback onTap,
+  ) {
     return InkWell(
-
       onTap: onTap,
 
       borderRadius: BorderRadius.circular(16),
 
       child: Container(
-
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
           color: Colors.white,
           boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(.05),
-              blurRadius: 8,
-            )
+            BoxShadow(color: Colors.black.withOpacity(.05), blurRadius: 8),
           ],
         ),
 
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
@@ -744,12 +700,7 @@ Widget studentCounter() {
 
             const SizedBox(height: 10),
 
-            Text(
-              title,
-              style: const TextStyle(
-                  fontWeight: FontWeight.w600),
-            )
-
+            Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
           ],
         ),
       ),

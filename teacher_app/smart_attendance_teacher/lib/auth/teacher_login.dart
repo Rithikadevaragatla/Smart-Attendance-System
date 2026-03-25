@@ -51,8 +51,6 @@ class _TeacherLoginPageState extends State<TeacherLoginPage> {
 
       if (user == null) return;
 
-      /* CHECK ADMIN */
-
       final adminDoc = await FirebaseFirestore.instance
           .collection("users")
           .doc(user.uid)
@@ -71,8 +69,6 @@ class _TeacherLoginPageState extends State<TeacherLoginPage> {
 
         return;
       }
-
-      /* CHECK TEACHER */
 
       final teacherDoc = await FirebaseFirestore.instance
           .collection("teachers")
@@ -147,101 +143,132 @@ class _TeacherLoginPageState extends State<TeacherLoginPage> {
   @override
   Widget build(BuildContext context) {
 
+    final logoColor = const Color(0xFF2E1A8A);
+
     return Scaffold(
 
       appBar: AppBar(
-        title: const Text("Teacher / Admin Login"),
+        title: const Text("Faculty / Admin Login"),
       ),
 
-      body: Padding(
-        padding: const EdgeInsets.all(20),
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
 
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
 
-            const Icon(
-              Icons.school,
-              size: 70,
-              color: Colors.indigo,
-            ),
-
-            const SizedBox(height: 20),
-
-            const Text(
-              "Smart Attendance System",
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
+              /// COLLEGE LOGO
+              Image.asset(
+                "assets/gcet_logo.png",
+                width: MediaQuery.of(context).size.width * 0.25,
               ),
-            ),
 
-            const SizedBox(height: 30),
+              const SizedBox(height: 10),
 
-            TextField(
-              controller: _emailController,
-              decoration: const InputDecoration(
-                labelText: "Email",
-                border: OutlineInputBorder(),
-              ),
-            ),
-
-            const SizedBox(height: 15),
-
-            TextField(
-              controller: _passwordController,
-              obscureText: true,
-              decoration: const InputDecoration(
-                labelText: "Password",
-                border: OutlineInputBorder(),
-              ),
-            ),
-
-            const SizedBox(height: 10),
-
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: _resetPassword,
-                child: const Text("Forgot Password?"),
-              ),
-            ),
-
-            if (_errorMessage.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 10),
-                child: Text(
-                  _errorMessage,
-                  style: const TextStyle(color: Colors.red),
+              /// COLLEGE NAME
+              Text(
+                "Geethanjali College of Engineering and Technology (Autonomous)",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: logoColor,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
 
-            const SizedBox(height: 20),
+              const SizedBox(height: 5),
 
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                minimumSize: const Size(double.infinity, 50),
+              /// ACCREDITATION
+              Text(
+                "Accredited by NAAC with A+ Grade; B.Tech. CSE, EEE, ECE accredited by NBA",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: logoColor,
+                  fontSize: 12,
+                ),
               ),
-              onPressed: _isLoading ? null : _loginUser,
-              child: _isLoading
-                  ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text("Login"),
-            ),
 
-            const SizedBox(height: 10),
+              /// ADDRESS
+              Text(
+                "Sy. No: 33 & 34, Cheeryal (V), Keesara (M), Medchal District, Telangana – 501301",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: logoColor,
+                  fontSize: 12,
+                ),
+              ),
 
-            TextButton(
-              child: const Text("New Faculty? Create Account"),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const TeacherSignupPage(),
+              const SizedBox(height: 30),
+
+              /// EMAIL
+              TextField(
+                controller: _emailController,
+                decoration: const InputDecoration(
+                  labelText: "Email",
+                  border: OutlineInputBorder(),
+                ),
+              ),
+
+              const SizedBox(height: 15),
+
+              /// PASSWORD
+              TextField(
+                controller: _passwordController,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: "Password",
+                  border: OutlineInputBorder(),
+                ),
+              ),
+
+              const SizedBox(height: 10),
+
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: _resetPassword,
+                  child: const Text("Forgot Password?"),
+                ),
+              ),
+
+              if (_errorMessage.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 10),
+                  child: Text(
+                    _errorMessage,
+                    style: const TextStyle(color: Colors.red),
                   ),
-                );
-              },
-            ),
-          ],
+                ),
+
+              const SizedBox(height: 20),
+
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  minimumSize: const Size(double.infinity, 50),
+                ),
+                onPressed: _isLoading ? null : _loginUser,
+                child: _isLoading
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text("Login"),
+              ),
+
+              const SizedBox(height: 10),
+
+              TextButton(
+                child: const Text("New Faculty? Create Account"),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const TeacherSignupPage(),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );

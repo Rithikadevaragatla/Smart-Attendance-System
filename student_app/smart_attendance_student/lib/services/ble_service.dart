@@ -22,7 +22,7 @@ class BleService {
         final List<int> rawData = manufacturerData[1234]!;
         final data = String.fromCharCodes(rawData);
 
-        // Expected: sessionId|CSE|A
+        // sessionId|subject|department|year|section ✅
         final parts = data.split("|");
 
         if (parts.length == 5) {
@@ -33,7 +33,7 @@ class BleService {
             "year": parts[3],
             "section": parts[4],
           };
-          break;
+          FlutterBluePlus.stopScan();
         }
       }
     }

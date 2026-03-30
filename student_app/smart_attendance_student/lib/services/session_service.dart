@@ -15,7 +15,7 @@ class SessionService {
   Future<bool> validateSession({
   required String sessionId,
   required String studentDept,
-  required String studentYear,
+  required int studentYear,
   required String studentSection,
 }) async {
   final doc = await _db.collection('sessions').doc(sessionId).get();

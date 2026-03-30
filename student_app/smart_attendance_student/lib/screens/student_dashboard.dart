@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'login_screen.dart';
+import 'subject_details_page.dart';
+import 'profile_page.dart';
+import 'courses_page.dart';
 import '../services/ble_service.dart';
 import '../services/session_service.dart';
 import '../services/permission_service.dart';
@@ -28,16 +31,54 @@ class StudentDashboard extends StatefulWidget {
 class _StudentDashboardState extends State<StudentDashboard> {
   String studentName = "";
   String rollNo = "";
-  String studentDept = "";
-  String studentYear = "";
-  String studentSection = "";// NEW
+  String? studentDept;
+  int? studentYear;
+  String? studentSection;
   bool loading = true;
+  double overallPercentage = 0;
+  bool isLowAttendance = false;
 
   @override
   void initState() {
     super.initState();
     fetchStudentData();
+   // calculateOverallAttendance();
   }
+  Future<void> calculateOverallAttendance() async {
+  final uid = FirebaseAuth.instance.currentUser!.uid;
+
+  // 1️⃣ Get all sessions
+  final sessionsSnapshot = await FirebaseFirestore.instance
+    .collection('sessions')
+    .where('department', isEqualTo: studentDept)
+    .where('year', isEqualTo: studentYear)
+    .where('section', isEqualTo: studentSection)
+    .get();
+
+  // 2️⃣ Get student attendance
+  final attendanceSnapshot = await FirebaseFirestore.instance
+      .collection('students')
+      .doc(uid)
+      .collection('attendance')
+      .get();
+
+  int totalSessions = sessionsSnapshot.docs.length;
+  int present = attendanceSnapshot.docs.length;
+
+if (totalSessions == 0) {
+  setState(() {
+    overallPercentage = 0;
+    isLowAttendance = true;
+  });
+  return;
+}
+  double percent = (present / totalSessions) * 100;
+
+  setState(() {
+    overallPercentage = percent;
+    isLowAttendance = percent < 75;
+  });
+}
 
   Future<void> fetchStudentData() async {
   final uid = FirebaseAuth.instance.currentUser!.uid;
@@ -59,25 +100,16 @@ class _StudentDashboardState extends State<StudentDashboard> {
   }
 
   setState(() {
-    studentName = doc['name'];
-    rollNo = doc['rollNo'];
-    studentDept = doc['department'] ?? "";
-    studentYear = doc['year'] ?? "";
-    studentSection = doc['section'] ?? "";
-    loading = false;
-  });
-  if (studentDept.isEmpty ||
-    studentYear.isEmpty ||
-    studentSection.isEmpty) {
+     studentName = doc['name'];
+  rollNo = doc['rollNo'];
 
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Class not assigned. Contact admin.")),
-    );
+  studentDept = doc['department'];
+studentYear = int.tryParse(doc['year'].toString());
+studentSection = doc['section'];
+  loading = false;
   });
+  await calculateOverallAttendance();
 }
-}
-
 double calculateDistance(List<double> e1, List<double> e2) {
   double sum = 0.0;
   for (int i = 0; i < e1.length; i++) {
@@ -121,6 +153,28 @@ double calculateDistance(List<double> e1, List<double> e2) {
               onTap: () => Navigator.pop(context),
             ),
             ListTile(
+              leading: const Icon(Icons.book),
+              title: const Text("Courses"),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const CoursesPage()),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.person),
+              title: const Text("Profile"),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ProfilePage()),
+                );
+              },
+            ),
+
+            
+            ListTile(
               leading: const Icon(Icons.logout),
               title: const Text("Logout"),
               onTap: () async {
@@ -156,13 +210,28 @@ double calculateDistance(List<double> e1, List<double> e2) {
                           Text(
                             "Welcome, $studentName",
                             style: const TextStyle(
-                              fontSize: 22,
+                              fontSize: 16,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                           const SizedBox(height: 4),
                           Text("Roll No: $rollNo"),
-                        ],
+                          const SizedBox(height: 6),
+                            Text(
+                              "Attendance: ${overallPercentage.toStringAsFixed(1)}%",
+                              style: const TextStyle(fontSize: 18,fontWeight: FontWeight.bold),
+                            ),
+
+                            Text(
+                              isLowAttendance
+                                  ? "Your attendance is low"
+                                  : "Your attendance is good",
+                              style: TextStyle(
+                                color: isLowAttendance ? Colors.red : Colors.green,
+                                fontSize: 18, fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                                                    ],
                       ),
                     ),
 
@@ -182,50 +251,58 @@ double calculateDistance(List<double> e1, List<double> e2) {
                           }
 
                           // 2️⃣ BLE scan
+                                                 
                           final bleService = BleService();
                           final sessionService = SessionService();
 
                           final sessionData = await bleService.scanForSession();
-                          
 
-if (sessionData == null) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    const SnackBar(content: Text("No active class nearby")),
-  );
-  return;
-}
+                          if (sessionData == null) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text("No active class nearby")),
+                            );
+                            return;
+                          }
 
-final sessionId = sessionData["sessionId"] ?? "";
-final sessionDept = sessionData["department"] ?? "";
-final sessionYear = sessionData["year"] ?? "";
-final sessionSection = sessionData["section"] ?? "";
+                          // Extract data
+                          String sessionId = sessionData["sessionId"]!;
+                          String subject = sessionData["subject"]!;
+                          String dept = sessionData["department"]!;
+                          int year = int.tryParse(sessionData["year"]!) ?? -1;
+                          String section = sessionData["section"]!;
+                          // Edge case
+                          if (studentDept == null || studentYear == null || studentSection == null) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text("Contact admin. Class not assigned")),
+                            );
+                            return;
+                          }
 
-                         
-                          if (sessionDept != studentDept ||
-    sessionYear != studentYear  || sessionSection != studentSection) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text("This session is not for your class")),
-                          );
-                          return;
-                        }
-                           
+                          // FILTER
+                          if (dept.trim().toUpperCase() != studentDept!.trim().toUpperCase() ||
+                              year != studentYear ||
+                              section.trim().toUpperCase() != studentSection!.trim().toUpperCase()) {
 
+                            print("Different class session ignored");
+
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text("This session is not for your class")),
+                            );
+
+                            return;
+                          }
+
+                          print("Correct class session detected");
                           // 3️⃣ Validate session
-                         final isValid = await sessionService.validateSession(
-                                sessionId: sessionId,
-                                studentDept: studentDept,
-                                studentYear: studentYear,
-                                studentSection: studentSection,
-                              );
+                          final isActive =
+                              await sessionService.isSessionActive(sessionId);
 
-                              if (!isValid) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text("Invalid session")),
-                                );
-                                return;
-                              }
-
-                          
+                          if (!isActive) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text("Session is no longer active")),
+                            );
+                            return;
+                          }
 
                           // 4️⃣ Open camera
                           final imagePath = await Navigator.push(
@@ -333,7 +410,32 @@ final distance =
 
 print("FINAL DISTANCE = $distance");
 
-if (distance < 0.8) {
+
+
+  if (distance < 0.8) {
+
+  final uid = FirebaseAuth.instance.currentUser!.uid;
+
+  // 🔍 CHECK FIRST (ADD THIS)
+  final existing = await FirebaseFirestore.instance
+      .collection('students')
+      .doc(uid)
+      .collection('attendance')
+      .doc(sessionId)
+      .get();
+
+  if (existing.exists) {
+    showDialog(
+      context: context,
+      builder: (_) => const AlertDialog(
+        title: Text("Already Marked"),
+        content: Text("You have already marked attendance for this class."),
+      ),
+    );
+    return;
+  }
+
+  // ✅ THEN SAVE (your existing code)
 
   await FirebaseFirestore.instance
       .collection('sessions')
@@ -346,6 +448,17 @@ if (distance < 0.8) {
     'timestamp': Timestamp.now(),
   });
 
+  await FirebaseFirestore.instance
+      .collection('students')
+      .doc(uid)
+      .collection('attendance')
+      .doc(sessionId)
+      .set({
+    'subject': subject,
+    'date': Timestamp.now(),
+    'status': 'Present',
+  });
+
   showDialog(
     context: context,
     builder: (_) => AlertDialog(
@@ -355,8 +468,8 @@ if (distance < 0.8) {
       ),
     ),
   );
-
-} else {
+}
+ else {
 
   showDialog(
     context: context,
@@ -390,10 +503,10 @@ if (distance < 0.8) {
                         TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: 10),
-
-                  _timetableCard("09:00 - 10:00", "DBMS"),
-                  _timetableCard("10:00 - 11:00", "AI"),
-                  _timetableCard("02:00 - 03:00", "CN"),
+                  _timetableCard(context, "09:00 - 10:00", "DBMS"),
+                  _timetableCard(context, "09:00 - 10:00", "AI"),
+                  _timetableCard(context, "09:00 - 10:00", "CN"),
+                  
 
                   const SizedBox(height: 30),
 
@@ -416,15 +529,30 @@ if (distance < 0.8) {
 
   // ---------- Widgets ----------
 
-  static Widget _timetableCard(String time, String subject) {
-    return Card(
-      child: ListTile(
-        leading: const Icon(Icons.schedule),
-        title: Text(subject),
-        subtitle: Text(time),
-      ),
-    );
-  }
+  static Widget _timetableCard(
+    BuildContext context, String time, String subject) {
+  return Card(
+    child: ListTile(
+      leading: const Icon(Icons.schedule),
+      title: Text(subject),
+      subtitle: Text(time),
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => SubjectDetailsPage(
+              subjectName: subject,
+              subjectCode: "CS301",
+              faculty: "Dr.S.Radha",
+              time: time,
+              room: "213",
+            ),
+          ),
+        );
+      },
+    ),
+  );
+}
 
   static Widget _attendanceCard(String subject, int percent) {
     return Card(

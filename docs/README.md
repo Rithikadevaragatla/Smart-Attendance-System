@@ -71,6 +71,15 @@ Traditional attendance systems are:
 
 ## 🏗️ System Architecture
 
+```mermaid
+flowchart TD
+    A[Teacher App] --> B[BLE Communication]
+    B --> C[Student App]
+    C --> D[Face Recognition]
+    D --> E[Firebase Backend]
+    E --> F[Analytics & Reports]
+    F --> G[Low Attendance Alerts]
+
 ---
 
 ## ⚙️ Technologies Used

@@ -1,4 +1,4 @@
-# SmartMark – Smart Attendance System
+# SmartMark – Anti-Proxy Attendance System
 
 ## 📌 Overview
 **SmartMark** is an intelligent, mobile-based attendance system that eliminates proxy attendance using a hybrid approach of **BLE proximity detection + Facial Recognition + Cloud Analytics**.
